@@ -95,6 +95,12 @@ suite "spline":
   test "empty stops is InvalidOp":
     let stops: seq[ColorStop] = @[]
     check spline(stops, 0.5'f32, SplineOpts()).error.kind == InvalidOp
+  test "duplicate positions are InvalidOp":
+    let a = color(tagOklab, 0.5'f32, 0.0'f32, 0.0'f32).get
+    let b = color(tagOklab, 0.7'f32, 0.0'f32, 0.0'f32).get
+    let stops = [ColorStop(color: a, pos: 0.5'f32),
+                 ColorStop(color: b, pos: 0.5'f32)]
+    check spline(stops, 0.5'f32, SplineOpts()).error.kind == InvalidOp
 
 suite "easing":
   test "linear easing is identity":
@@ -112,6 +118,12 @@ suite "easing":
   test "steps easing jump-end hits endpoints":
     let e = stepsEasing(2, spJumpEnd).get
     check near(easing(0.0, e), 0.0, 1.0e-9)
+    check near(easing(1.0, e), 1.0, 1.0e-9)
+  test "steps easing jump-both jumps at 0 and 1":
+    # n=4 -> 5 jumps at 0, 1/4, 2/4, 3/4, 1; t=0 -> 1/5, t=1 -> 1.
+    let e = stepsEasing(4, spJumpBoth).get
+    check near(easing(0.0, e), 0.2, 1.0e-9)
+    check near(easing(0.5, e), 0.6, 1.0e-9)
     check near(easing(1.0, e), 1.0, 1.0e-9)
 
 suite "interpolateBatch":

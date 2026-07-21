@@ -1,30 +1,14 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright 2026 lituus-lab
-# spline — spline interpolation over color stops (CSS Color 4).
-#
-# `spline(stops, t, opts)` converts the stops to `opts.space`, fits a cubic
-# spline through the knots component-wise (PCHIP monotone default, or natural
-# cubic opt-in), and returns the value at `t` in `opts.space` (or `target` when
-# `gamutMap`). The result carries a non-fatal `warning` when the cubic-natural
-# method overshoots the data range — a `SplineResult = { color, warning }`
-# carries it alongside the successful color rather than surfacing it as a hard
-# `err`.
-#
-# Methods:
-#   - PCHIP (default, Fritsch-Carlson): monotone cubic Hermite. Tangents are
-#     the weighted harmonic mean of the adjacent slopes, flattened to 0 at local
-#     extrema; endpoints take the slope of their single segment. No overshoot,
-#     preserves data monotonicity.
-#   - Cubic natural (opt-in): the C² natural cubic (second derivative 0 at the
-#     ends, Thomas tridiagonal solve for the interior). Smoother but NOT
-#     monotonicity-preserving — it can overshoot the data range, reported as a
-#     non-fatal warning.
-#
-# Spec hole: CSS Color 4 does not define splining the angular hue of
-# cylindrical (Jch) spaces. L/J and C (and Cartesian comps) are splined by the
-# chosen method; the hue (component 2 of polar spaces) is interpolated LINEARLY
-# between the two segment knots via `interpHue` — a naive angular spline would
-# wrap. PCHIP on polar L/C is still monotone-safe.
+# spline — spline interpolation over color stops (CSS Color 4). `spline(stops,
+# t, opts)` converts stops to `opts.space`, fits a cubic spline through the
+# knots component-wise (PCHIP monotone default, or natural cubic opt-in), and
+# returns the value at `t` in `opts.space` (or `target` when `gamutMap`). The
+# result is a `SplineResult = { color, warning }`: a non-fatal `warning` is
+# carried when natural-cubic overshoots the data range (PCHIP never overshoots).
+# Polar (Jch) hue is interpolated linearly between segment knots via
+# `interpHue` (an angular spline would wrap); L/J, C, and Cartesian comps use
+# the chosen spline method.
 import std/options
 import UniColor/core/core
 import UniColor/core/space_tag
@@ -185,7 +169,7 @@ proc spline*(stops: openArray[ColorStop], t: float32,
   ## `warning` when `smCubicNatural` overshoots the data range. PCHIP never
   ## warns. Polar (Jch) hues are interpolated linearly between the segment knots
   ## (spec hole — see module header). Empty stops, non-finite / out-of-[0,1] /
-  ## unsorted positions return InvalidOp; hub/`to`/`gamutMap` errors
+  ## unsorted or duplicate positions return InvalidOp; hub/`to`/`gamutMap` errors
   ## (UnknownSpace, InvalidColor) propagate unchanged.
   if stops.len == 0:
     return err[SplineResult, ColorError](colorError(InvalidOp,
@@ -198,9 +182,9 @@ proc spline*(stops: openArray[ColorStop], t: float32,
     if p < 0.0 or p > 1.0:
       return err[SplineResult, ColorError](colorError(InvalidOp,
           "spline: stop position out of [0,1]", "spline"))
-    if i > 0 and p < stops[i - 1].pos.float64:
+    if i > 0 and p <= stops[i - 1].pos.float64:
       return err[SplineResult, ColorError](colorError(InvalidOp,
-          "spline: stop positions must be sorted non-decreasing", "spline"))
+          "spline: stop positions must be strictly increasing", "spline"))
   let dOpt = spaceByTag(opts.space)
   if dOpt.isNone:
     return err[SplineResult, ColorError](colorError(UnknownSpace,

@@ -166,7 +166,9 @@ func stepsAt(t: float64, count: int, position: StepPosition): float64 =
       result = min(1.0, floor(t * n) / float64(count - 1)) # n-1 jumps, no end jumps
   of spJumpBoth:
     let j = n + 1.0
-    result = min(1.0, (floor(t * j) + 1.0) / j) # jump at both ends; t=0 -> 1/(n+1)
+    # n+1 jumps at 0, 1/n, ..., 1 (step index floor(t*n), like the other
+    # branches); t=0 -> 1/(n+1), t=1 -> 1.
+    result = min(1.0, (floor(t * n) + 1.0) / j)
 
 func easingCubicBezier(t: float64, p1x, p1y, p2x, p2y: float64): float64 =
   ## cubic-bezier: solve B_x(u)=t, return B_y(u).
