@@ -13,6 +13,8 @@ import "UniColor/export/serialize"
 import "UniColor/export/css"
 import "UniColor/export/tailwind"
 import "UniColor/export/base16"
+import "UniColor/export/ide"
+import "UniColor/export/terminals"
 export registry
 export serialize
 export base16 # base16Slots / base24ExtraSlots (reused by the Base16 importer).
