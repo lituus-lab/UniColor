@@ -40,6 +40,9 @@ suite "palette ctor and indexing":
     let p = palette(palOrdered, [a, b], intentSequential, 0).get
     let s = sample(p, 0.0).get
     check s.spaceTag == tagOklch # default GradientOpts space.
+    let aOk = a.to(tagOklch).get
+    for i in 0 ..< 3:
+      check near(s.comp(i).float64, aOk.comp(i).float64)
   test "sample on unordered is InvalidOp":
     let a = color(tagSrgb, 0.8'f32, 0.2'f32, 0.2'f32).get
     let p = palette(palUnordered, [a], intentQualitative, 0).get

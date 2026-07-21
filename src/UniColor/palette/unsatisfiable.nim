@@ -46,7 +46,6 @@ proc satisfy*(p: Palette, constraints: openArray[
   ## (best-effort, unchanged — repair is the optimiser's job) plus one
   ## `PaletteWarning` per violated constraint. Never silent: an unsatisfied
   ## palette always carries at least one warning.
-  ## carries at least one warning.
   let report = checkConstraints(p.colors, constraints)
   var warnings: seq[PaletteWarning] = @[]
   if not report.satisfied:
