@@ -12,6 +12,9 @@ endif
 ROOT   := $(CURDIR)/../..
 CFLAGS := -I$(ROOT)/include -O2 -Wall -Wextra -std=c11
 LIB    := $(ROOT)/libUniColor.a
+# glibc keeps the math symbols (pow/atan2/cbrt/sincos/...) in a separate libm;
+# macOS folds them into libc. -lm is a no-op there and resolves the link on Linux.
+LIBS   := -lm
 
 ifeq ($(OS),Windows_NT)
   BIN  := test_unicolor.exe
@@ -28,7 +31,7 @@ all: run
 run: $(BIN)
 	$(RUN)
 $(BIN): test_unicolor.c $(ROOT)/include/UniColor.h $(LIB)
-	$(CC) $(CFLAGS) -o $(BIN) test_unicolor.c $(LIB)
+	$(CC) $(CFLAGS) -o $(BIN) test_unicolor.c $(LIB) $(LIBS)
 # File target, not phony: `nimble ctest` already built the lib, don't redo it.
 $(LIB):
 	cd $(ROOT) && nimble clibStatic
