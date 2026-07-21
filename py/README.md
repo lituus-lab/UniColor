@@ -3,10 +3,14 @@
 # unicolor — Python binding
 
 ```bash
-nimble clib                                              # build libUniColor.so
-cd py && python3 setup.py build_ext --inplace            # build extension
-cd py && python3 -m pytest -q                            # test
+nimble pyLib                                    # native lib for this platform
+(cd py && python3 setup.py build_ext --inplace) # build the Cython extension
+(cd py && python3 -m pytest -q)                 # test
 ```
+
+`nimble pyLib` builds the shared lib on Linux/macOS and the MSVC static lib on
+Windows, so the same commands work everywhere. The subshells keep your shell's
+cwd unchanged.
 
 ```python
 import unicolor

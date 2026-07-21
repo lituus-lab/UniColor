@@ -16,6 +16,8 @@ dependencies = []
 
 [project.optional-dependencies]
 test = ["pytest>=7"]
+# Builds py/notebooks/quickstart.ipynb via py/notebooks/build_quickstart.py.
+notebook = ["nbformat>=5", "nbclient>=0.10", "ipykernel"]
 
 [tool.setuptools]
 packages = ["unicolor"]

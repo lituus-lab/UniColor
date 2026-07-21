@@ -98,19 +98,30 @@ task pyLib, "Build the library the Python extension links against":
   else:
     exec "nimble clib"
 
+task pyNotebookDeps, "Install notebook build deps (nbformat, nbclient, ipykernel) if missing":
+  exec "python3 -m pip install --break-system-packages --quiet nbformat nbclient ipykernel"
+
 task buildCython, "Cython extension in-place":
   exec "nimble pyLib"
   exec "nimble pyDeps"
-  exec "cd py && python3 setup.py build_ext --inplace"
+  # nimscript `cd` (lib/system/nimscript.nim) changes the VM cwd for the next
+  # exec without a shell, so the task works under nimble's no-shell exec on Windows.
+  cd "py"
+  exec "python3 setup.py build_ext --inplace"
+  cd ".."
 
 task pyTest, "Cython extension + pytest":
   exec "nimble buildCython"
-  exec "cd py && python3 -m pytest -q"
+  cd "py"
+  exec "python3 -m pytest -q"
+  cd ".."
 
 task pyWheel, "wheel":
   exec "nimble pyLib"
   exec "nimble pyDeps"
-  exec "cd py && python3 setup.py bdist_wheel"
+  cd "py"
+  exec "python3 setup.py bdist_wheel"
+  cd ".."
 
 task coverage, "LCOV + HTML coverage report for the Nim sources (needs lcov)":
   # gcov and lcov driven directly, no coco. Linux and macOS only.
