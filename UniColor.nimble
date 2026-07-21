@@ -9,6 +9,7 @@ license       = "Apache-2.0"
 srcDir        = "src"
 
 requires "nim >= 2.0.0"
+requires "https://github.com/lbartoletti/NimContracts#5da33902d5d6e6738541e978da1d005a3f51517b"
 
 task lint, "Fail if nimpretty would reformat a source":
   exec "nim c -r --hints:off -o:build/lint_tool tools/lint.nim"
@@ -31,16 +32,16 @@ task docs, "API reference + book into pages/ — what CI publishes":
   cpFile "book/index.html", "pages/index.html"
 
 task test, "Nim tests (debug, contracts active)":
-  exec "nim c -r --path:src -o:build/test_version tests/test_version.nim"
+  exec "nim c -r --path:src -o:build/test_all tests/test_all.nim"
 
 task testRelease, "Nim tests (release, contracts compiled away)":
-  exec "nim c -r -d:release --path:src -o:build/test_version_rel tests/test_version.nim"
+  exec "nim c -r -d:release --path:src -o:build/test_all_rel tests/test_all.nim"
 
 task testCi, "Nim tests (CI subset, debug)":
-  exec "nim c -r --path:src -o:build/test_version tests/test_version.nim"
+  exec "nim c -r --path:src -o:build/test_all tests/test_all.nim"
 
 task testCiRelease, "Nim tests (CI subset, release)":
-  exec "nim c -r -d:release --path:src -o:build/test_version_rel tests/test_version.nim"
+  exec "nim c -r -d:release --path:src -o:build/test_all_rel tests/test_all.nim"
 
 task testAll, "debug + release + C ABI":
   exec "nimble test"
@@ -64,16 +65,16 @@ const
     else: ""
 
 task clib, "C shared library":
-  exec "nim c --app:lib --noMain --mm:arc -d:release -o:" & sharedLib & macArgs &
-       " src/UniColor/c_api.nim"
+  exec "nim c --app:lib --noMain --mm:arc -d:release --path:src -o:" & sharedLib &
+       macArgs & " src/UniColor/c_api.nim"
 
 task clibStatic, "C static library":
-  exec "nim c --app:staticlib --noMain --mm:arc -d:release -o:" & staticLib &
-       " src/UniColor/c_api.nim"
+  exec "nim c --app:staticlib --noMain --mm:arc -d:release --path:src -o:" &
+       staticLib & " src/UniColor/c_api.nim"
 
 task clibMsvc, "C static library, MSVC ABI (Windows Python extension)":
   # CPython on Windows is MSVC-built and cannot link MinGW output.
-  exec "nim c --cc:vcc --app:staticlib --noMain --mm:arc -d:release" &
+  exec "nim c --cc:vcc --app:staticlib --noMain --mm:arc -d:release --path:src" &
        " -o:UniColor.lib src/UniColor/c_api.nim"
 
 # Nim's MinGW toolchain names it mingw32-make.
@@ -134,7 +135,7 @@ task coverage, "LCOV + HTML coverage report for the Nim sources (needs lcov)":
   rmDir "coverage"
   exec "nim c --path:src --nimcache:" & cache &
        " --debugger:native --passC:--coverage --passL:--coverage" &
-       " -o:build/test_coverage tests/test_version.nim"
+       " -o:build/test_coverage tests/test_all.nim"
   exec "./build/test_coverage"
   exec "lcov --capture --directory " & cache & " --base-directory ." &
        " --include \"*/src/UniColor/*\" --output-file lcov.info --quiet"
