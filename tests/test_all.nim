@@ -15,3 +15,4 @@ import test_batch
 import test_math
 import test_spaces
 import test_conversion
+import test_contrast

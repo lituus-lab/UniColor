@@ -20,3 +20,11 @@ under the Apache License, Version 2.0, in the CAM16 viewing conditions
 The port preserves the algorithm and constant tables; the Material DEFAULT
 viewing conditions are frozen. The original copyright notice and patent grant
 apply.
+
+This product includes ports of the APCA (apca-w3 0.0.98G) and BridgePCA
+(bridge-pca 0.1.6 4g-W3) perceptual contrast models by Andrew Somers (Myndex),
+licensed under the BSD 3-Clause License, in contrast/apca.nim and
+contrast/bridgepca.nim. The ports preserve the version-pinned constant tables
+and the SAPC/BPCA core verbatim; the sign convention (BoW positive, WoB
+negative) and the BridgePCA WoB bridge term are reproduced exactly. The
+original copyright notice and disclaimer apply.
