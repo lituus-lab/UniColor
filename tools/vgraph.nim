@@ -5,7 +5,7 @@
 ## (ADR-0001).
 ## Line-based scan of import/from/include, which covers the forms Nim sources
 ## actually use; a macro-built import would slip past it.
-import std/[os, strformat, strutils, tables]
+import std/[os, strformat, strutils]
 
 const
   Cfg = "vgraph.cfg"
@@ -31,8 +31,20 @@ proc layerOf(path: string, order: seq[string]): int =
         return i
   -1
 
+proc layerOfModule(modulePath: string, order: seq[string]): int =
+  ## Index of the layer owning an imported module path, or -1. Matches a layer
+  ## name against any path component, so `UniColor/spaces/oklab` resolves to the
+  ## `spaces` layer and a bare `c_api` to the `c_api` layer.
+  let parts = modulePath.split({'/', '\\'})
+  for i, name in order:
+    for part in parts:
+      if part == name or part == name & ".nim":
+        return i
+  -1
+
 iterator importedModules(path: string): string =
-  ## Last path component of every module the file pulls in.
+  ## Full slash-separated path of every module the file pulls in. Directory
+  ## components are preserved so a directory layer (`spaces`) can be resolved.
   for raw in readFile(path).splitLines:
     let line = raw.split('#')[0].strip
     var body = ""
@@ -43,7 +55,7 @@ iterator importedModules(path: string): string =
     # `std/[os, strutils]` -> the bracket members carry the meaningful names.
     body = body.multiReplace(("[", ","), ("]", ","))
     for item in body.split(','):
-      let module = item.strip.split({'/', '\\'})[^1].strip
+      let module = item.strip
       if module.len > 0:
         yield module
 
@@ -70,9 +82,6 @@ proc main() =
   if not fileExists(Cfg):
     quit(&"vgraph: {Cfg} not found", 1)
   let order = section("layers")
-  var index = initTable[string, int]()
-  for i, name in order:
-    index[name] = i
 
   var violations: seq[string]
 
@@ -83,7 +92,7 @@ proc main() =
     if own < 0: continue
     inc checked
     for module in importedModules(path):
-      let other = index.getOrDefault(module, -1)
+      let other = layerOfModule(module, order)
       if other > own:
         violations.add &"{path}: imports {module} ({order[other]}) from {order[own]}"
 
