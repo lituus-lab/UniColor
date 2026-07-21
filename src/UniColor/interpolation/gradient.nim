@@ -1,14 +1,10 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright 2026 lituus-lab
-# gradient — multi-stop color gradient (CSS Color 4 multi-stop + premultiplied
-# alpha + gamut map of intermediate stops).
-#
-# `gradient(stops, t, opts)` finds the segment containing `t`, computes the
-# local parameter `u` within that segment, and delegates the per-space blend
-# (hue method, premultiplied alpha, gamut map) to `interpolate` (space.nim).
-# Stops carry an explicit position in [0,1] and must be sorted non-decreasing —
-# CSS sorts/clamps stops, but this API makes the sorted contract explicit and
-# surfaces a violation as InvalidOp rather than silently reordering.
+# gradient — multi-stop color gradient (CSS Color 4). `gradient(stops, t,
+# opts)` finds the segment containing `t`, computes the local parameter `u`,
+# and delegates the per-space blend (hue method, premultiplied alpha, gamut
+# map) to `interpolate`. Stops carry an explicit [0,1] position and must be
+# sorted non-decreasing; a violation surfaces as InvalidOp.
 import UniColor/core/core
 import UniColor/core/space_tag
 import UniColor/core/numerics

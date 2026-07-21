@@ -1,11 +1,10 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright 2026 lituus-lab
 # interpolation — per-space interpolation (CSS Color 4 hue arcs), multi-stop
-# gradients, PCHIP/cubic splines, and CSS easing primitives.
-# The default interpolation space is OKLCH; cylindrical LCH-family spaces blend
-# L and C linearly and h along the chosen `HueMethod` arc (default `hmShorter`).
-# This umbrella re-exports the submodules so callers reach them via
-# `interpolation`.
+# gradients, PCHIP/cubic splines, and CSS easing primitives. Default space
+# OKLCH; cylindrical LCH-family spaces blend L and C linearly and h along the
+# chosen `HueMethod` arc (default `hmShorter`). Umbrella re-exporting the
+# submodules.
 
 import UniColor/interpolation/space
 import UniColor/interpolation/gradient

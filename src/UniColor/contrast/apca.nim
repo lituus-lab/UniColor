@@ -1,22 +1,11 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright 2026 lituus-lab
-# apca — APCA / SAPC perceptual contrast (Myndex apca-w3 0.0.98G).
-# Authoritative source: Myndex apca-w3 `src/apca-w3.js` (0.0.98G, verbatim).
-# Opt-in "experimental" (APCA withdrawn from the WCAG3 draft, "TBD").
-#
-# `apcaContrast(text, bg)` — signed Lc. Converts both operands to sRGB-encoded
-# D65 via the hub, linearizes with the APCA power-2.4 luminance (the SIMPLE
-# power law `(c)^2.4`, NOT the piecewise sRGB EOTF — APCA's own "estimate
-# screen luminance"), then runs the SAPC core. Returns the hub error if a space
-# is unregistered.
-# SIGN CONVENTION (apca-w3 0.0.98G, authoritative): dark text on a light
-# background (BoW, normal polarity, bgY > txtY) -> POSITIVE Lc (~+106 for
-# #000/#fff). Light text on a dark background (WoB, reverse polarity) ->
-# NEGATIVE Lc (~-108 for #fff/#000).
-# Thresholds: fine 90, normal 75, large 60, non-text 60, symbols 50.
-# `ApcaExperimental = true` (opt-in, not the default metric).
-# Constants frozen verbatim from apca-w3 SA98G (version-pinned — Lc can shift
-# between releases). float64 throughout.
+# apca — APCA / SAPC perceptual contrast (Myndex apca-w3 0.0.98G, BSD-3; see
+# NOTICE). `apcaContrast(text, bg)` returns a signed Lc: both operands are
+# converted to sRGB-encoded D65 via the hub, linearized with the APCA power-2.4
+# luminance, then run through the SAPC core. Sign convention: BoW (dark text on
+# light bg) -> positive Lc (~+106 for #000/#fff); WoB -> negative (~-108).
+# Constants frozen verbatim from SA98G (version-pinned). float64.
 import std/math
 import UniColor/core/core
 import UniColor/core/space_tag

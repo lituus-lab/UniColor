@@ -1,18 +1,12 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright 2026 lituus-lab
-# space — per-space color interpolation.
-#
-# `interpolate(a, b, t, opts)` converts both endpoints to `opts.space` (via the
-# hub), blends them linearly in that space, and returns the result IN
-# `opts.space` (the caller may reconvert). Cylindrical LCH-family spaces (LCH,
-# OKLCH, CAM16, HCT: components [L/J, C, h]) blend L/J and C linearly and h
-# along the shorter arc (CSS Color 4 `shorter`, the default hue method). The
-# hue is normalized to [0,360) on output to respect each space's canonical
-# range (descriptor compMax[2] = 360).
-#
-# Hue math (the four CSS Color 4 methods + normalization) lives in `hue`; this
-# module applies the achromatic rule on top of it. Premultiplied alpha is
-# supported opt-in; easing and splines are separate modules.
+# space — per-space color interpolation. `interpolate(a, b, t, opts)` converts
+# both endpoints to `opts.space` via the hub, blends linearly in that space, and
+# returns the result IN `opts.space` (caller may reconvert). Cylindrical
+# LCH-family spaces ([L/J, C, h]) blend L/J and C linearly and h along the
+# shorter arc (CSS Color 4 `shorter`, default); hue normalized to [0,360) on
+# output. Premultiplied alpha is opt-in; hue math lives in `hue` and the
+# achromatic rule is applied here.
 import std/options
 import UniColor/core/core
 import UniColor/core/space_tag

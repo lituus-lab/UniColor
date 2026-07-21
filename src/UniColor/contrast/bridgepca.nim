@@ -1,33 +1,13 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright 2026 lituus-lab
-# bridgepca — BridgePCA (Myndex bridge-pca 0.1.6 4g-W3).
-# Authoritative source: Myndex bridge-pca `src/bridge-pca.js` (0.1.6, run via
-# node to derive the golden vectors — the stale "EXPECTED RESULT" <pre> block
-# in test.html is copied from the APCA vectors and predates the 0.1.6 `bridge`
-# term; the reference run is the true anchor).
-# Opt-in "experimental" (BridgePCA is an alternative, non-default metric).
-#
-# `bpcaContrast(text, bg)` — signed Lc. Converts both operands to sRGB-encoded
-# D65 via the hub, linearizes with the BridgePCA power-2.4 luminance using the
-# "future" derived sRGB coefficients (0.2126478/0.7151791/0.0721730 — NOT
-# APCA's 0.2126729/0.7151522/0.0721750), then the BPCA core. Returns the hub
-# error if a space is unregistered.
-# DIFFERENCE FROM APCA: the WoB (reverse) branch adds a `bridge` term
-# `max(0, txtY/0.84 - 1) * 0.1414`, pushing light-text/dark-bg Lc less negative
-# toward WCAG 2 (backwards-compatible). The BoW (positive) branch is the APCA
-# core unchanged. Active only when the text luminance exceeds the 0.84 pivot
-# (else 0). Visible on #fff/#888: APCA = -68.541, BridgePCA = -65.848
-# (+2.69 = the bridge term).
-# SIGN CONVENTION (bridge-pca 0.1.6, authoritative): BoW (dark text/light bg,
-# bgY>txtY) -> POSITIVE Lc; WoB (light text/dark bg) -> NEGATIVE Lc. Same as
-# APCA.
-# `bridgeRatio(lc, text, bg)` — the WCAG-aligned NUMERIC ratio derived from a
-# BridgePCA Lc (bridge-pca `bridgeRatio`, BEFORE the reference's string
-# formatting — the engine returns a number, not a "x to 1" string; formatting
-# is a presentation concern). Takes the Lc + both colors (the maxY-based trim
-# needs txtY/bgY).
-# Thresholds (idealized Lc <-> WCAG mapping: 90~7:1, 75~4.5:1, 60~3:1): fine
-# 90, normal 75, large 60, non-text 60, symbols 50. `BpcaExperimental = true`.
+# bridgepca — BridgePCA (Myndex bridge-pca 0.1.6 4g-W3, BSD-3; see NOTICE).
+# `bpcaContrast(text, bg)` returns a signed Lc: operands are converted to
+# sRGB-encoded D65 via the hub, linearized with the BridgePCA power-2.4
+# luminance (derived sRGB coefficients, not APCA's), then the BPCA core. WoB
+# (reverse polarity) adds a `bridge` term that pulls light-text/dark-bg Lc
+# toward WCAG 2; the BoW branch is the APCA core unchanged. Sign convention:
+# BoW -> positive, WoB -> negative (same as APCA). `bridgeRatio(lc, text, bg)`
+# returns the WCAG-aligned numeric ratio (a number, not a formatted string).
 # Constants frozen verbatim from bridge-pca 0.1.6 (version-pinned). float64.
 import std/math
 import UniColor/core/core

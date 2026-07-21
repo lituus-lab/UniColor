@@ -1,26 +1,13 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright 2026 lituus-lab
-# hue — CSS Color 4 hue interpolation math.
-#
-# The four hue methods as signed arcs from h1 to h2, plus normalization to
-# [0,360). Pure hue math: it knows nothing about colors or achromaticity. The
-# achromatic rule (an achromatic bound adopts the other's hue; 0 if both
-# achromatic) is applied in `interpolate` (space.nim), which owns the colors
-# and `isAchromatic`.
-#
-# Reference: CSS Color 4 §13.4 hue interpolation. Given h1, h2 (any reals,
-# taken mod 360) the signed delta from h1 to h2 is:
-#   shorter:    delta in [-180, 180]            (the shortest signed arc)
-#   longer:     delta in (-360,-180] ∪ [180,360) (the complement of shorter)
-#   increasing: delta in [0, 360)               (always wraps forward)
-#   decreasing: delta in (-360, 0]              (always wraps backward)
-# Edge cases (verified by hand against the reference):
-#   h1 == h2:        shorter=0, longer=360 (full turn), increasing=0, decreasing=0.
-#   delta == +180:   shorter/longer/increasing -> +180 ; decreasing -> -180.
-#   delta == -180:   shorter/longer/decreasing -> -180 ; increasing -> +180.
-# `shorter` is antisymmetric (shorter(h1,h2) == -shorter(h2,h1)); the ±180
-# boundary keeps the sign of the raw delta, so 180 -> 0 takes the -180 arc
-# (midpoint 90), not +180.
+# hue — CSS Color 4 hue interpolation math. Pure hue math (no color/achromatic
+# knowledge). Given h1, h2 (taken mod 360), the signed delta from h1 to h2:
+#   shorter:    [-180, 180]             (shortest signed arc)
+#   longer:     (-360,-180] ∪ [180,360) (complement of shorter)
+#   increasing: [0, 360)                (always forward)
+#   decreasing: (-360, 0]               (always backward)
+# The achromatic rule is applied in `interpolate` (space.nim), which owns the
+# colors and `isAchromatic`.
 import std/math
 
 type

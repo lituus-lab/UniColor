@@ -1,14 +1,10 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright 2026 lituus-lab
-# cam16ucs — ΔE_CAM16-UCS (CAM16 uniform colour space, Li/Luo et al.).
-#
-# Reads `comp(0..2)` as the CAM16-UCS coords J', a', b' DIRECTLY — no hub
-# conversion. The UCS *transform* (CAM16 J,C,h → J',a',b', with the KL/Ka/Kb
-# UCS rescaling and the viewing-condition parameters L_A/Y_b/surround) is the
-# SPACE's job (cam16.nim / the hub) — it is already applied when the CAM16-UCS
-# color is built, so this metric is plain euclidean and takes NO
-# viewing-condition arguments: the coords already encode them. SYMMETRIC.
-# float64.
+# cam16ucs — ΔE_CAM16-UCS (CAM16 uniform colour space, Li/Luo et al.). Reads
+# `comp(0..2)` as J', a', b' DIRECTLY — no hub conversion. The UCS transform
+# (CAM16 J,C,h -> J',a',b' with KL/Ka/Kb rescaling and viewing-condition
+# params) is applied when the CAM16-UCS color is built, so this metric is plain
+# euclidean and takes no viewing-condition arguments. Symmetric. float64.
 import std/math
 import UniColor/core/core
 

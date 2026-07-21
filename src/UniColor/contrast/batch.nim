@@ -1,28 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright 2026 lituus-lab
-# contrast/batch — vector/batch distance API.
-#
-# `deltaEOkBatch` computes ΔE_ok over N (a,b) pairs with the SAME result as
-# calling `deltaE_ok` element-by-element (within TOL_NUMERIC). `batchOpts.parallel`
-# is ACCEPTED but routes to the SIMD/serial path (documented no-op for THREADS):
-# `deltaE_ok` is pure math (no registry read → gcsafe-able, unlike the hub-bound
-# batch procs), BUT it costs ~6.7ns/pair while a thread `spawn` costs ~µs, so
-# per-pair THREAD parallelism is a SLOWDOWN at every realistic N. The
-# `parallel` flag stays on the contract surface for API stability; tests pin
-# `parallel=true == serial == scalar` within TOL_NUMERIC. Length mismatch →
-# InvalidOp.
-#
-# SIMD: the batch processes 2 pairs per `Vec[2, float64]` lane (128-bit f64x2).
-# float64 (not f32x4) matches the scalar `deltaE_ok` precision — a float32 lane
-# would violate TOL_NUMERIC for small distances (see core/simd.nim header). Ops
-# are left-assoc `*`/`+` in the SAME order as the scalar
-# `sqrt((l1-l2)^2 + (a1-a2)^2 + (b1-b2)^2)`, and `x*x` stands in for the scalar
-# `^2`/`pow` (within <1 ULP, well inside TOL_NUMERIC). Bit-identical RNE
-# (no fast-math); auto-vectorized to `sqrtpd`/`mulpd`/`addpd` at -O3 (release),
-# 2-way scalar in debug — same values either way. Gated `len >= 4` (two full
-# 2-lane iterations) so the gather does not dominate at tiny N; the scalar tail
-# handles the remainder and any len < 4. `parallel` does not gate SIMD (SIMD is
-# intra-proc, not threads) — both flag values use the SIMD path when len >= 4.
+# contrast/batch — vector/batch distance API. `deltaEOkBatch` computes ΔE_ok
+# over N (a,b) pairs matching `deltaE_ok` element-by-element within TOL_NUMERIC.
+# `batchOpts.parallel` is accepted on the contract surface but is a documented
+# no-op (serial today). Length mismatch -> InvalidOp.
 import UniColor/core/core # Color, ColorError, Result, BatchOpts, colorError, InvalidOp.
 import UniColor/core/simd # Vec[2, float64] SIMD128 lane.
 import UniColor/contrast/ok # deltaE_ok — the per-pair scalar reference (OKLab-direct, no hub).
