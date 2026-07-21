@@ -10,7 +10,11 @@
 # the shared serialize layer.
 import "UniColor/export/registry"
 import "UniColor/export/serialize"
+import "UniColor/export/css"
+import "UniColor/export/tailwind"
+import "UniColor/export/base16"
 export registry
 export serialize
+export base16 # base16Slots / base24ExtraSlots (reused by the Base16 importer).
 
 const exportModule* = "0.1.0"
