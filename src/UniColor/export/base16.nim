@@ -28,10 +28,13 @@
 # of theme insertion order); gamut-map is deterministic; the header is a
 # literal. Same (theme, opts) -> byte-identical output. No RNG, no I/O.
 #
-# `base16Slots`/`base24ExtraSlots` are public: the Base16 IMPORTER reuses them
-# as the inverse slot->role projection. Self-registers via
-# `discard registerExporter(...)`; the facade `export/export.nim` imports this
-# module to fire it.
+# `base16Slots`/`base24ExtraSlots` are public (the (slot, role) projection in
+# emit order). The Base16 IMPORTER cannot reference them: the DAG places
+# `import` BELOW `export`, so import -> export is forbidden. The importer
+# DUPLICATES the inverse slot->role maps in `import/formats_base16.nim`; drift
+# is caught by the round-trip test (export -> import -> re-export slot map
+# equal). Self-registers via `discard registerExporter(...)`; the facade
+# `export/export.nim` imports this module to fire it.
 #
 # Layer: export (consumer of serialize + registry + palette/unsatisfiable +
 # theme).

@@ -2,6 +2,7 @@
 # Copyright 2026 lituus-lab
 import std/unittest
 import std/options
+import std/strutils # round-trip diff debug.
 import std/tables # setRoleDedup table.
 import UniColor
 
@@ -145,6 +146,97 @@ suite "partial — readColorOrSkip + setRoleDedup":
     check coll.warnings.len == 1
     check coll.warnings[0].code == warnDuplicateRole
     check tab["a"] == blue # last value wins.
+
+suite "round-trip — export -> import -> re-export is byte-identical (sRGB hex)":
+  # The golden invariant every format leaf documents:
+  #   exportTheme(importTheme(exportTheme(t, fmt), fmt), fmt) == exportTheme(t, fmt)
+  # Run with `legacySrgb: true` so every format emits sRGB hex (the slot formats
+  # are sRGB-only; the data/css formats honor the flag) -> hex round-trips
+  # byte-identically through parseColor + gamutMap(sRGB -> sRGB identity). Runs
+  # BEFORE the registry-sealing suite below (which mutates + seals LAST).
+  let rtTheme = theme([
+    ThemeToken(name: "background", color: red),
+    ThemeToken(name: "text.primary", color: blue),
+    ThemeToken(name: "text.secondary", color: red),
+    ThemeToken(name: "text.disabled", color: blue),
+    ThemeToken(name: "surface", color: blue),
+    ThemeToken(name: "surface.variant", color: red),
+    ThemeToken(name: "overlay", color: blue),
+    ThemeToken(name: "primary", color: blue),
+    ThemeToken(name: "secondary", color: red),
+    ThemeToken(name: "tertiary", color: blue),
+    ThemeToken(name: "accent", color: red),
+    ThemeToken(name: "error", color: red),
+    ThemeToken(name: "warning", color: blue),
+    ThemeToken(name: "success", color: blue),
+    ThemeToken(name: "info", color: red),
+    ThemeToken(name: "syntax.variable", color: red),
+    ThemeToken(name: "syntax.constant", color: blue),
+    ThemeToken(name: "syntax.type", color: red),
+    ThemeToken(name: "syntax.string", color: blue),
+    ThemeToken(name: "syntax.operator", color: red),
+    ThemeToken(name: "syntax.keyword", color: blue),
+    ThemeToken(name: "syntax.comment", color: red),
+    ThemeToken(name: "syntax.function", color: blue),
+    ThemeToken(name: "syntax.number", color: red),
+    ThemeToken(name: "syntax.namespace", color: blue)
+  ], [
+    ThemeToken(name: "text.muted", alias: "text.secondary")
+  ], []).get
+  var sopts = defaultExportOpts()
+  sopts.legacySrgb = true # sRGB hex round-trip (keep the real `--` prefix default).
+  proc rt(fmt: string) =
+    let out1 = exportTheme(rtTheme, fmt, sopts).get
+    let imp = importTheme(out1, fmt)
+    check imp.isOk
+    let out2 = exportTheme(imp.get, fmt, sopts).get
+    check out1 == out2
+  # CSS vars FLATTENS the alias layer (a semantic role becomes a primitive on
+  # import -> the sorted `orderedRoles` output reorders), so the byte-identical
+  # invariant does NOT hold for css (documented in import/formats_css). The
+  # role->color MAPPING is preserved (color-level round-trip): extract the
+  # `--role: value;` pairs from both outputs and compare.
+  proc cssVarMap(output: string): Table[string, string] =
+    for line in output.splitLines():
+      let s = line.strip()
+      if not s.startsWith("--"):
+        continue
+      let sep = s.find(": ")
+      if sep < 0:
+        continue
+      let role = s[2 ..< sep]
+      let rest = s[sep + 2 ..< s.len]
+      let semi = rest.find(';')
+      result[role] = if semi >= 0: rest[0 ..< semi] else: rest
+  test "lossless data: json / toml / yaml (full tree + alias)":
+    rt("json")
+    rt("toml")
+    rt("yaml")
+  test "flattened: css (light :root, no dark variant) — mapping-equal":
+    let out1 = exportTheme(rtTheme, "css", sopts).get
+    let imp = importTheme(out1, "css")
+    check imp.isOk
+    let out2 = exportTheme(imp.get, "css", sopts).get
+    check cssVarMap(out1) == cssVarMap(out2)
+  test "slot-bounded: base16 / base24":
+    rt("base16")
+    rt("base24")
+  test "terminals: alacritty / kitty / windowsterminal / foot":
+    rt("alacritty")
+    rt("kitty")
+    rt("windowsterminal")
+    rt("foot")
+  test "ide (lossless slot subset): vscode / helix":
+    rt("vscode")
+    rt("helix")
+  test "data import reconstructs the alias layer (not just primitives)":
+    # The data formats preserve the semantic alias target name; the imported
+    # Theme carries text.muted as a semantic alias of text.secondary, not a
+    # flattened primitive.
+    let out1 = exportTheme(rtTheme, "json", sopts).get
+    let t = importTheme(out1, "json").get
+    check t.sems.hasKey("text.muted")
+    check t.sems["text.muted"] == "text.secondary"
 
 suite "importer registry (idempotent, sealable)":
   # Mutates the global registry (registers custom importers, then seals) so it
