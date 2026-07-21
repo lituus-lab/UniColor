@@ -122,9 +122,12 @@ func hueToRgb(h, s, v: float64): Vec3 {.raises: [].} =
 
 func rgbToHue(mx, mn, d, r, g, b: float64): float64 {.inline, raises: [].} =
   # Hue in degrees [0,360); 0 when achromatic (d ~ 0). NaN mx -> comparisons
-  # false -> 0.
+  # false -> 0. Nim float `mod` is truncated (fmod), so the red-max branch
+  # yields a negative hue when g < b; normalize into [0,360) there.
   if d < TOL_NUMERIC_ABS: 0.0
-  elif mx == r: 60.0 * (((g - b) / d) mod 6.0)
+  elif mx == r:
+    let h = 60.0 * (((g - b) / d) mod 6.0)
+    if h < 0.0: h + 360.0 else: h
   elif mx == g: 60.0 * ((b - r) / d + 2.0)
   else: 60.0 * ((r - g) / d + 4.0)
 

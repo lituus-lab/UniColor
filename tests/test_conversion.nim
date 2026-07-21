@@ -132,6 +132,12 @@ suite "short-path: HSV / HSL / HWB trio (sRGB-anchored)":
     check near(sp.comp(0).float64, mb.comp(0).float64, TOL_EQUAL)
     check near(sp.comp(1).float64, mb.comp(1).float64, TOL_EQUAL)
     check near(sp.comp(2).float64, mb.comp(2).float64, TOL_EQUAL)
+  test "red-max with g < b normalizes hue into [0,360) (no fmod leak)":
+    # sRGB(1, 0, 0.5): red is max, g < b -> hue must be 330, not -30.
+    let c = color(tagSrgb, 1.0'f32, 0.0'f32, 0.5'f32).get
+    let h = to(c, tagHsv).get
+    check near(h.comp(0).float64, 330.0, 1e-3)
+    check h.comp(0).float64 >= 0.0 and h.comp(0).float64 < 360.0
 
 suite "short-path: alpha preserved + dispatch":
   test "Lab(alpha=0.3) -> LCH keeps alpha=0.3":
@@ -212,8 +218,9 @@ suite "round-trip: documented exclusions":
     let back = to(to(c, tagSrgb).get, tagHct).get
     check near(back.comp(0).float64, 285.0, 1.0) # H preserved
     check near(back.comp(2).float64, 60.0, 1.0) # T preserved
-    check back.comp(1).float64 < 60.0 # C may drop (gamut-map), never
-                                                # exceeds source
+    check back.comp(1).float64 < 60.0 # C stays bounded; in-gamut source ->
+                                                # no map, 8-bit quantize noise
+                                                # can drift C above source
 
 # --- gamut map: CSS Color 4 golden vectors (Color.js reference) --------------
 # Golden sRGB output tolerance: same algorithm + same matrices as Color.js ->
