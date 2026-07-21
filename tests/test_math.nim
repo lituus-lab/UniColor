@@ -81,6 +81,32 @@ suite "transfer — ProPhoto":
     for x in [0.0, 0.1, 0.5, 0.9, 1.0]:
       check near(proPhotoOetf(proPhotoEotf(x)), x)
 
+suite "transfer — Rec2020 BT.2020":
+  test "endpoints map [0,1] -> [0,1]":
+    check near(rec2020Oetf(0.0), 0.0)
+    check near(rec2020Oetf(1.0), 1.0)
+    check near(rec2020Eotf(0.0), 0.0)
+    check near(rec2020Eotf(1.0), 1.0)
+  test "EOTF/OETF round-trip (both sides of the toe)":
+    for x in [0.0, 0.01, 0.1, 0.5, 0.9, 1.0]:
+      check near(rec2020Eotf(rec2020Oetf(x)), x, 1e-9)
+  test "toe constants and junction (10-bit BT.2020 approximation)":
+    # 10-bit BT.2020 (alpha=1.099, beta=0.099); the 12-bit variant uses 1.0993.
+    # Linear branch below the 0.018 toe: V = 4.5 * L (exact).
+    check near(rec2020Oetf(0.017), 0.0765, 1e-12)
+    # At the toe (L = 0.018) the power branch takes over (l < threshold is
+    # false): V = 1.099 * 0.018^0.45 - 0.099 = 0.081247944... The linear branch
+    # projects to 0.081; the ~2.5e-4 step is the 10-bit rounding of alpha (the
+    # C1-continuous alpha ~1.0975 would cancel it; BT.2020 keeps 1.099 as
+    # published, so the step is intentional, not a bug).
+    check near(rec2020Oetf(0.018), 0.08124794403514046, 1e-9)
+    check near(rec2020Oetf(0.019), 0.08568720669545446, 1e-9)
+    # EOTF inverses: linear below 0.081, power at/above.
+    check near(rec2020Eotf(0.0765), 0.017, 1e-12)
+    check near(rec2020Eotf(0.081), 0.01794502336674779, 1e-9)
+    # Inverse consistency holds at the junction despite the branch step.
+    check near(rec2020Eotf(rec2020Oetf(0.018)), 0.018, 1e-9)
+
 suite "transfer — PQ BT.2100":
   test "endpoints":
     check near(pqEotf(0.0), 0.0, 1e-6)

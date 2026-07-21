@@ -3,9 +3,11 @@
 ## UniColor — perceptual color engine. Umbrella module.
 import UniColor/core/core
 import UniColor/math/math
+import UniColor/spaces/spaces
 export core
 export math
+export spaces
 
 const
   UniColorVersion* = "0.1.0"
-  ucModuleMarkers* = [coreModule, mathModule]
+  ucModuleMarkers* = [coreModule, mathModule, spacesModule]

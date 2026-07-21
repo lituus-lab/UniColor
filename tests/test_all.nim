@@ -13,3 +13,4 @@ import test_simd
 import test_parse_color
 import test_batch
 import test_math
+import test_spaces

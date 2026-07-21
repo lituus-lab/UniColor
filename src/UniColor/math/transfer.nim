@@ -70,6 +70,48 @@ func proPhotoOetf*(c: float64): float64 {.inline, raises: [].} =
   else:
     pow(c, 1.0 / ProPhotoGamma)
 
+# --- Rec2020 / BT.2020 OETF (ITU-R BT.2020-2) ---------------------------------
+# Same piecewise form as BT.709: linear toe then 0.45 power. Distinct from the
+# sRGB 2.4 curve (IEC 61966-2-1), so it gets its own transfer kind. c1 + c2 form
+# not applicable; the 1.0 endpoint is pinned by 1.099*1 - 0.099 = 1.0 (exact).
+# ITU-R BT.2020-2 defines two precision variants sharing threshold 0.018 and
+# slope 4.5: 10-bit (alpha=1.099, beta=0.099, used here) and 12-bit
+# (alpha=1.0993, beta=0.0993). We implement the 10-bit variant (matches BT.709).
+# The 10-bit alpha is rounded: the C1-continuous alpha making both branches meet
+# with matching slope at L=0.018 is ~1.0975 (beta=0.099 = 5.5*0.018 already
+# matches it). BT.2020 keeps 1.099, so the power branch gives ~0.081248 at
+# L=0.018 where the linear branch projects to 0.081 — an intentional ~2.5e-4
+# junction step from the 10-bit rounding (12-bit shrinks it to ~3e-6; the C1
+# ideal cancels it). We keep the 10-bit values as published rather than the
+# non-standard C1 alpha or the 12-bit curve. The EOTF toe 0.081 = 4.5*0.018 is
+# the linear-branch endpoint; each function uses its own branch consistently, so
+# the round-trip EOTF(OETF(x)) stays tight at the junction (see test_math "toe
+# constants").
+
+const
+  Rec2020LinearThreshold* = 0.018 # OETF toe (linear)
+  Rec2020LinearSlope* = 4.5
+  Rec2020Alpha* = 1.099           # 10-bit BT.2020 (12-bit uses 1.0993)
+  Rec2020Beta* = 0.099            # = 5.5 * 0.018 (matches the C1-continuous beta)
+  Rec2020Gamma* = 0.45
+  Rec2020EncThreshold* = 0.081    # = 4.5 * 0.018, EOTF toe (encoded)
+
+func rec2020Oetf*(l: float64): float64 {.inline, raises: [].} =
+  ## BT.2020 OETF (scene linear [0,1] -> encoded [0,1]). l=0 -> 0, l=1 -> 1.
+  ## NaN propagated.
+  if l < Rec2020LinearThreshold:
+    l * Rec2020LinearSlope
+  else:
+    Rec2020Alpha * pow(l, Rec2020Gamma) - Rec2020Beta
+
+func rec2020Eotf*(v: float64): float64 {.inline, raises: [].} =
+  ## BT.2020 EOTF (encoded [0,1] -> scene linear [0,1]), inverse of `rec2020Oetf`.
+  ## v=0 -> 0, v=1 -> 1.
+  if v < Rec2020EncThreshold:
+    v / Rec2020LinearSlope
+  else:
+    pow((v + Rec2020Beta) / Rec2020Alpha, 1.0 / Rec2020Gamma)
+
 # --- PQ BT.2100 (SMPTE ST 2084, peak 10000 cd/m²) -----------------------------
 
 const
