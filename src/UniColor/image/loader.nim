@@ -1,20 +1,14 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright 2026 lituus-lab
 # loader — `ImageLoader` registry: injected decoding, narrow pipeline.
-# UniColor does NOT parse image formats. Decoding is DELEGATED to an injected
-# loader — a proc the caller registers by name that turns encoded `bytes` into
-# an `Image`. The engine stays format-free (no stb_image/libvips/libpng in the
-# core); the caller registers a PNG/JPEG/WebP loader from whichever library
-# they chose. This is the Open/Closed seam: a new format = a new registered
-# loader, no core change.
-#
-# Layer-0 rule: UniColor ships NO PNG/JPEG/WebP encode or decode. PNG lives in
-# the later UniImage repo. The engine ships ONE default loader — "nimraw" — a
-# trivial engine-native raw format (`u32 LE width` | `u32 LE height` | RGBA8
-# pixels) used by tests/golden so the pipeline can be exercised without an
-# external image dependency. It is NOT a real format; real decoders are
-# caller-registered. Fuzz: empty bytes / 0x0 dims / truncated buffer ->
-# `InvalidImage`.
+# UniColor does not parse image formats. Decoding is delegated to a proc the
+# caller registers by name that turns encoded `bytes` into an `Image` — the
+# Open/Closed seam (a new format is a new registered loader, no core change).
+# The engine ships no format decoder (layer-0: encode/decode for real formats
+# is a UniImage concern); it ships one trivial engine-native raw format,
+# "nimraw" (`u32 LE width` | `u32 LE height` | RGBA8 pixels), so tests/golden
+# exercise the pipeline without an external dependency. Fuzz: empty bytes /
+# 0x0 dims / truncated buffer -> `InvalidImage`.
 #
 # Layer: image (consumer of core + image/internal). Deterministic, no input
 # mutation.
@@ -130,7 +124,6 @@ proc decodeNimraw*(bytes: openArray[byte]): Result[Image,
     off += NimrawChannels
   image(w, h, pxs, tagSrgb, 8, gamutSdr)
 
-# Bootstrap — register the default raw loader. Real format decoders
-# (PNG/JPEG/WebP) are caller-registered via `registerImageLoader` (the engine
-# ships none — layer-0 no-PNG rule).
+# Bootstrap — register the default raw loader. Real format decoders are
+# caller-registered via `registerImageLoader` (the engine ships none).
 discard registerImageLoader(ImageLoader(name: "nimraw", decode: decodeNimraw))

@@ -133,7 +133,7 @@ suite "ImageLoader registry — injected decoding, narrow pipeline":
     check abs(p.comp(2).float64 - 50.0 / 255.0) < 2.0e-2
 
   test "unknown loader name -> err (not InvalidImage)":
-    let r = decode("png", [byte 0])
+    let r = decode("definitelyNotAFormat", [byte 0])
     check r.isErr
     check r.error.kind == UnknownAlgorithm
 
