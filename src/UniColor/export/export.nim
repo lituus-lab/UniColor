@@ -15,6 +15,9 @@ import "UniColor/export/tailwind"
 import "UniColor/export/base16"
 import "UniColor/export/ide"
 import "UniColor/export/terminals"
+import "UniColor/export/nix_lua"
+import "UniColor/export/json_toml_yaml"
+import "UniColor/export/zsh_tmux"
 export registry
 export serialize
 export base16 # base16Slots / base24ExtraSlots (reused by the Base16 importer).
