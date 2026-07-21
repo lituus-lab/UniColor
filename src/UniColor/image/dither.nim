@@ -213,6 +213,12 @@ proc bayer(img: Image, levels: int, opts: DitherOpts): Result[Image,
   let w = img.width
   let h = img.height
   let b = compBounds(img)
+  # Per-channel quantisation step over the image's [min, max] — constant for
+  # the whole image, so precompute once (0 for a degenerate range).
+  var steps: array[3, float64]
+  for k in 0 .. 2:
+    steps[k] = if b[k].mx <= b[k].mn: 0.0
+      else: (b[k].mx - b[k].mn) / float64(levels - 1)
   var buf = newSeq[array[3, float64]](w * h)
   for i, c in img.pixels:
     buf[i] = [c.comp(0).float64, c.comp(1).float64, c.comp(2).float64]
@@ -221,10 +227,8 @@ proc bayer(img: Image, levels: int, opts: DitherOpts): Result[Image,
       let idx = y * w + x
       let t = float64(Bayer4[y mod 4][x mod 4]) / 16.0
       for k in 0 .. 2:
-        let step = (if b[k].mx <= b[k].mn: 0.0
-          else: (b[k].mx - b[k].mn) / float64(levels - 1))
         # Centered ordered perturbation: add (t - 0.5) * step * strength, then snap.
-        let perturbed = buf[idx][k] + (t - 0.5) * step * opts.strength
+        let perturbed = buf[idx][k] + (t - 0.5) * steps[k] * opts.strength
         buf[idx][k] = quantizeLevel(perturbed, b[k].mn, b[k].mx, levels)
   buildOut(img, buf)
 

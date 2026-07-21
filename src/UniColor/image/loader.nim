@@ -99,12 +99,24 @@ proc decodeNimraw*(bytes: openArray[byte]): Result[Image,
     return err[Image, ColorError](colorError(InvalidImage,
         "nimraw: header truncated (need " & $NimrawHeader & " bytes, got " &
         $bytes.len & ")", "decodeNimraw"))
-  let w = int(u32le(bytes, 0))
-  let h = int(u32le(bytes, NimrawHeader div 2))
-  if w <= 0 or h <= 0:
+  # Decode dims as uint32 and validate the payload in uint64 BEFORE converting
+  # to int / allocating: w*h*4 can overflow `int` for large u32 dims, which
+  # would bypass the size check or request a bogus allocation.
+  let wU = u32le(bytes, 0)
+  let hU = u32le(bytes, NimrawHeader div 2)
+  if wU == 0 or hU == 0:
     return err[Image, ColorError](colorError(InvalidImage,
-        "nimraw: dimensions must be > 0, got " & $w & "x" & $h, "decodeNimraw"))
-  let expected = NimrawHeader + w * h * NimrawChannels
+        "nimraw: dimensions must be > 0, got " & $wU & "x" & $hU,
+        "decodeNimraw"))
+  let pixU64 = uint64(wU) * uint64(hU)
+  let payloadU64 = uint64(NimrawHeader) + pixU64 * uint64(NimrawChannels)
+  if pixU64 > uint64(high(int)) or payloadU64 > uint64(high(int)):
+    return err[Image, ColorError](colorError(InvalidImage,
+        "nimraw: dimensions exceed addressable size (" & $wU & "x" & $hU & ")",
+        "decodeNimraw"))
+  let w = int(wU)
+  let h = int(hU)
+  let expected = int(payloadU64)
   if bytes.len != expected:
     return err[Image, ColorError](colorError(InvalidImage,
         "nimraw: payload size " & $(bytes.len - NimrawHeader) &

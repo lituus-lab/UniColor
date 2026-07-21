@@ -218,6 +218,10 @@ proc dominantColors*(img: Image, n: int, opts = defaultDominantOpts()): Result[
   for e in entries:
     if accepted.len == 0 or opts.minDeltaE <= 0.0:
       accepted.add(e)
+      # Merging is off (minDeltaE <= 0): `accepted` only grows by adding, so
+      # once it holds n entries the full result is known — stop iterating.
+      if opts.minDeltaE <= 0.0 and accepted.len >= n:
+        break
       continue
     var closestIdx = -1
     var closestD = Inf
@@ -239,11 +243,6 @@ proc dominantColors*(img: Image, n: int, opts = defaultDominantOpts()): Result[
           b: (e.b * e.weight + a2.b * a2.weight) / w)
     else:
       accepted.add(e)
-    if accepted.len >= n and opts.minDeltaE <= 0.0:
-      # Merging is off (minDeltaE <= 0 -> the merge branch never fires), so
-      # `accepted` only grows by adding. Once it holds n entries we have the
-      # full result — stop iterating.
-      break
   # Take the top n (the sort + merge already ordered by weight).
   var resultColors: seq[Color] = @[]
   for i in 0 ..< min(n, accepted.len):

@@ -925,11 +925,18 @@ suite "isHdr — HDR predicate":
         gamut = gamutPq).get
     check img.isHdr()
 
-  test "bitDepth>8 alone marks HDR (even with gamutHdr)":
+  test "10-bit HDR-gamut image -> HDR (both markers present)":
     let pxs = [linHdr(1.0'f32, 0.0'f32, 0.0'f32)]
     let img = hdrImage(1, 1, pxs, tagSrgbLin, bitDepth = 12,
         gamut = gamutHdr).get
     check img.isHdr()
+
+  test "high-bit-depth SDR gamut -> NOT HDR (both markers required)":
+    # A 16-bit sRGB image is high-bit-depth SDR, not HDR: isHdr requires the
+    # PQ/HLG gamut AND bitDepth > 8 (the invariant hdrImage enforces).
+    let pxs = [color(tagSrgb, 1.0'f32, 0.0'f32, 0.0'f32).get]
+    let img = image(1, 1, pxs, tagSrgb, bitDepth = 16, gamut = gamutSdr).get
+    check not img.isHdr()
 
 suite "toIctcpWorkSpace — HDR perceptual work space":
   test "converts an HDR image to ICtCp":

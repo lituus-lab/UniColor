@@ -1,19 +1,10 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright 2026 lituus-lab
 # hdr — HDR image support (float pixels, ICtCp perceptual work space). HDR
-# images carry `bitDepth > 8` and `gamut` in {gamutHdr, gamutPq} (PQ/HLG
-# transfer, BT.2100). The pipeline is identical to SDR; the perceptual work
-# space for HDR is ICtCp (BT.2100 PQ, Rec2020) instead of OKLab — ICtCp is the
-# HDR-aware perceptual space. Out-of-gamut / HDR values (comps > 1.0) are
-# PRESERVED — no blanket clamp: the `Color` constructor already rejects only
-# NaN/Inf and out-of-range alpha, keeping out-of-gamut comps verbatim, and
-# `to`/`toWorkSpace` propagate them.
-#
-# This module adds HDR-specific construction + the ICtCp work-space seam. The
-# existing quantize / histogram / dither algos run unchanged in any work space
-# — for HDR the caller passes `space = tagIctcp` (euclidean on the ICtCp
-# comps; the half-scaling of Ct in ΔE_ITP is a refinement deferred to a future
-# HDR-clustering lot — documented, out of scope here).
+# images carry `bitDepth > 8` and `gamut` in {gamutHdr, gamutPq} (PQ/HLG,
+# BT.2100); the perceptual work space is ICtCp. Out-of-gamut comps (> 1.0)
+# are preserved (no blanket clamp). For HDR clustering, pass `space = tagIctcp`
+# to the quantize/histogram/dither entry points.
 #
 # Layer: image (consumer of image/internal). Deterministic.
 import UniColor/core/core
@@ -28,8 +19,9 @@ const
   HdrMinBitDepth* = 9             ## `bitDepth > 8` marks HDR (10/12/16 typical); 8-bit is SDR.
 
 proc isHdr*(img: Image): bool {.raises: [].} =
-  ## Whether `img` is HDR: PQ/HLG gamut, or bit depth > 8 (the two HDR markers).
-  img.gamut in {gamutHdr, gamutPq} or img.bitDepth > 8
+  ## Whether `img` is HDR: both markers — PQ/HLG gamut AND bit depth > 8 (the
+  ## invariant `hdrImage` enforces; a high-bit-depth SDR image is not HDR).
+  img.gamut in {gamutHdr, gamutPq} and img.bitDepth > 8
 
 proc hdrImage*(width, height: int, pixels: openArray[Color],
     originSpace: SpaceTag, bitDepth: int, gamut: Gamut): Result[Image,
@@ -52,9 +44,7 @@ proc hdrImage*(width, height: int, pixels: openArray[Color],
 proc toIctcpWorkSpace*(img: Image): Result[Image, ColorError] {.raises: [].} =
   ## Convert `img` to ICtCp — the HDR perceptual work space (the HDR analogue
   ## of `toWorkSpace(tagOklab)` for SDR). Immutable (a fresh buffer is built;
-  ## `img` untouched). HDR / out-of-gamut comps are preserved through the
-  ## conversion (no blanket clamp — the hub routes via XYZ -> PQ, which
-  ## encodes 0..10000 nits). Conversion error (unknown space / unreachable
-  ## hub) propagates. Deterministic, single-threaded (parallel bulk is a
-  ## later perf lot).
+  ## `img` untouched). HDR / out-of-gamut comps are preserved (no blanket
+  ## clamp). Conversion error (unknown space / unreachable hub) propagates.
+  ## Deterministic.
   img.toWorkSpace(DefaultHdrWorkSpace)
