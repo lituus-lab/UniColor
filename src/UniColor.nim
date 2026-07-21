@@ -7,14 +7,16 @@ import UniColor/spaces/spaces
 import UniColor/conversion/conversion
 import UniColor/contrast/contrast
 import UniColor/interpolation/interpolation
+import UniColor/palette/palette
 export core
 export math
 export spaces
 export conversion
 export contrast
 export interpolation
+export palette
 
 const
   UniColorVersion* = "0.1.0"
   ucModuleMarkers* = [coreModule, mathModule, spacesModule, conversionModule,
-    contrastModule, interpolationModule]
+    contrastModule, interpolationModule, paletteModule]
