@@ -17,6 +17,7 @@ import UniColor/core/color
 import UniColor/core/parse_color
 import UniColor/core/batch
 import UniColor/core/simd
+import UniColor/core/schema
 export numerics
 export color_error
 export result
@@ -25,6 +26,7 @@ export color
 export parse_color
 export batch
 export simd
+export schema
 
 ## `Color` construction, parsing, and field access.
 runnableExamples:

@@ -12,6 +12,7 @@ import UniColor/accessibility/accessibility
 import UniColor/theme/theme
 import UniColor/image/image
 import UniColor/validation/validation
+import "UniColor/export/export" as ucExportArea
 export core
 export math
 export spaces
@@ -23,9 +24,10 @@ export accessibility
 export theme
 export image
 export validation
+export ucExportArea
 
 const
   UniColorVersion* = "0.1.0"
   ucModuleMarkers* = [coreModule, mathModule, spacesModule, conversionModule,
     contrastModule, interpolationModule, paletteModule, accessibilityModule,
-    themeModule, imageModule, validationModule]
+    themeModule, imageModule, exportModule, validationModule]
