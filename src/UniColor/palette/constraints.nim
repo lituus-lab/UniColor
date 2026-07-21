@@ -8,10 +8,10 @@
 # optimizer's `ObjectiveFn` (lower = better palette). Constraints are
 # constructed values (no registry): they capture their parameters in a closure.
 #
-# `cvdSafe` (CVD confusability) lands with the accessibility layer: it requires
-# CVD simulation (`simulateCvd`/`CvdType`), not yet ported. It returns with
-# accessibility rather than as a stub that lies or clashes with that layer's
-# `CvdType`.
+# `cvdSafe` (CVD confusability) lives in the accessibility layer
+# (`accessibility/constraint.nim`): CVD simulation is an accessibility concern,
+# and `palette` is below `accessibility` in the DAG, so the constraint cannot
+# live here. Import it from `UniColor/accessibility/constraint`.
 import UniColor/core/core
 import UniColor/conversion/conversion # `to` (OKLab/OKLCH), `gamutMap`.
 import UniColor/contrast/contrast # `deltaE_ok`, `contrastRatio`.
