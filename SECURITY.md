@@ -2,9 +2,9 @@
 <!-- Copyright 2026 lituus-lab -->
 # Security Policy
 
-Report vulnerabilities privately (email the maintainer — see git history),
-not via a public issue. Include: description + impact, minimal reproducer,
-affected version (`uc_version()`).
+Report vulnerabilities via GitHub private vulnerability reporting (Security
+tab → "Report a vulnerability"), not via a public issue. Include: description
++ impact, minimal reproducer, affected version (`uc_version()`).
 
 Only the latest released line is supported. The `0.1.x` C ABI is not yet frozen.
 
