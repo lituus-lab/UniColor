@@ -19,7 +19,6 @@
 # the OKLCH round-trip (OKLab is D65 so the round-trip is tight). All procs
 # pure: no Color mutation, deterministic, no side effects.
 import std/options
-import std/math # `clamp`, `abs`.
 import UniColor/core/core
 import UniColor/conversion/conversion # `to` (OKLCH round-trip) + `gamutMap`.
 import UniColor/contrast/contrast # `contrast(fg, bg, metric)` dispatcher.
@@ -56,6 +55,8 @@ type
 const
   DefaultAdjustStep* = 0.01       ## default L step (100 steps cover [0,1]).
   DefaultAdjustMetric* = "wcag22" ## WCAG 2.2 contrast ratio.
+  MaxAdjustSteps = 200_000        ## hard ceiling on the L sweep so an
+                                  ## extremely small `stepSize` cannot hang.
 
 proc defaultAdjustOpts*(): AdjustOpts {.raises: [].} =
   ## The default options: auto direction (away from bg), 0.01 L step.
@@ -121,6 +122,7 @@ proc adjustForContrast*(fg, bg: Color, threshold: float64,
   var k = 0
   var bestColor: Option[Color] = none(Color)
   var bestContrast = -1.0
+  var capped = false
   while true:
     var L = fL + sign * (opts.stepSize * k.float)
     var reachedExtreme = false
@@ -145,11 +147,15 @@ proc adjustForContrast*(fg, bg: Color, threshold: float64,
     if reachedExtreme:
       break
     inc k
+    if k > MaxAdjustSteps:
+      capped = true
+      break
   # Threshold unreachable within L ∈ [0,1] — surface the best-effort (closest
   # candidate) with a non-empty warning. Never silent: the caller must know.
   let be = if bestColor.isSome: bestColor.get else: fg
   ok[AdjustResult, ColorError](AdjustResult(color: be, met: false, steps: k,
       finalContrast: bestContrast,
       warning: "contrast threshold " & $threshold &
-      " unreachable within L ramp; best-effort " &
-        $dir & " extreme"))
+      " unreachable within L ramp; best-effort " & $dir &
+        (if capped: " (step cap " & $MaxAdjustSteps &
+            " hit)" else: " extreme")))

@@ -16,6 +16,7 @@
 # resolves to a bit-identical color every call.
 import std/tables
 import std/options
+import contracts # `{.contractual.}` pragma (NimContracts).
 import UniColor/core/core
 
 type
@@ -106,12 +107,23 @@ proc sems*(t: Theme): lent Table[string, string] {.inline, raises: [].} = t.sems
 proc comps*(t: Theme): lent Table[string, string] {.inline, raises: [].} = t.comps
 proc count*(t: Theme): int {.inline, raises: [].} = t.count
 
-# `withPrims` is the internal constructor for transformations that rebuild only
-# the primitive layer (invert/variant): it carries the alias layers + count over
-# unchanged. In-module, so it can touch the private fields. Not exported as a
-# general mutation hatch — it returns a NEW Theme.
-proc withPrims*(t: Theme, newPrims: Table[string, Color]): Theme {.raises: [].} =
-  Theme(prims: newPrims, sems: t.sems, comps: t.comps, count: t.count)
+# `withPrims` is the validated cross-module constructor for transformations that
+# rebuild only the primitive layer (invert/variant): it carries the alias layers
+# + count over unchanged. In-module, so it can touch the private fields. Returns
+# a NEW Theme. `require` enforces the "unique role names" invariant `theme`
+# builds: no `newPrims` key may collide with a semantic or component role in `t`.
+proc primsDisjoint(t: Theme, newPrims: Table[string, Color]): bool {.raises: [].} =
+  for k in newPrims.keys:
+    if t.sems.hasKey(k) or t.comps.hasKey(k):
+      return false
+  true
+
+proc withPrims*(t: Theme, newPrims: Table[string, Color]): Theme {.contractual,
+    raises: [].} =
+  require:
+    primsDisjoint(t, newPrims)
+  body:
+    Theme(prims: newPrims, sems: t.sems, comps: t.comps, count: t.count)
 
 proc len*(t: Theme): int {.raises: [].} =
   ## Total number of tokens across the three layers.

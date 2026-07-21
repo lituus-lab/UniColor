@@ -118,6 +118,13 @@ suite "golden reference themes":
     let b12 = color(tagSrgb, 0x00'i32 / 255, 0x25'i32 / 255,
         0x4d'i32 / 255).get
     check pr == b12
+  # Regression: the danger role is named `error` (the canonical Tailwind role),
+  # not the non-canonical `danger`, and it aliases red.500.
+  test "tailwindTheme resolves error to red.500":
+    let t = tailwindTheme().get
+    let er = t.resolve("error").get
+    let r5 = color(tagSrgb, 0xef'i32 / 255, 0x44'i32 / 255, 0x44'i32 / 255).get
+    check er == r5
 
 suite "themeFromColor":
   test "builds a 26-role flat theme":

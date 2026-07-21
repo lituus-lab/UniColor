@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright 2026 lituus-lab
 import std/options
+import std/math # `Inf`.
 import std/unittest
 import UniColor
 
@@ -105,3 +106,16 @@ suite "cvdSafe constraint":
         threshold = cvdMargin)])
     check not rep.satisfied
     check rep.results[0].violation > 0.0
+
+suite "pairless palettes (Inf margin)":
+  # Regression: a single-color (or empty) palette has no confusable pairs, so it
+  # is vacuously CVD-safe — `minDeltaE` is `Inf` (not 0.0) so `cvdSafe` does not
+  # flag it as a violation (threshold - Inf = 0 <= EPS).
+  test "single color audits safe with Inf margin":
+    let a = auditSafeColors([red])
+    check a.safe
+    check a.minDeltaE == Inf
+  test "single color satisfies cvdSafe":
+    let rep = checkConstraints([red], [cvdSafe()])
+    check rep.satisfied
+    check rep.results[0].violation <= 1.0e-12

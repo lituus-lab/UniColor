@@ -55,7 +55,7 @@ proc tailwindTheme*(): Result[Theme, ColorError] {.raises: [].} =
     ThemeToken(name: "text.primary", alias: "slate.900"),
     ThemeToken(name: "text.muted", alias: "slate.500"),
     ThemeToken(name: "primary", alias: "blue.500"),
-    ThemeToken(name: "danger", alias: "red.500")
+    ThemeToken(name: "error", alias: "red.500")
   ]
   let comps = [ThemeToken(name: "button.bg", alias: "primary")]
   theme(prims, sems, comps)

@@ -58,6 +58,10 @@ proc resolveFallback(t: Theme, role: string, visited: var Table[string,
   let exact = t.resolve(role)
   if exact.isOk:
     return exact
+  if exact.error.kind != UnresolvedRole:
+    # Non-recoverable (e.g. alias cycle) — propagate, do not paper over it by
+    # falling back to parent/family. Only a genuinely missing role falls back.
+    return exact
   # Step 2: family-internal parent (state stripped or hierarchy).
   let p = parentOf(role)
   if p.isSome:

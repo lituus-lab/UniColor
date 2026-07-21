@@ -120,7 +120,9 @@ proc auditOneDichromacy(colors: openArray[Color], t: CvdType, severity,
       if dR.isOk and dR.get < mn:
         mn = dR.get
   if mn > 1.0e8:
-    mn = 0.0 # empty / single-color: no pairs, margin 0 (vacuously safe).
+    mn = Inf # empty / single-color: no pairs -> infinite margin (vacuously
+             # safe), matching minPairwiseDeltaE's convention so the cvdSafe
+             # constraint does not flag a pairless palette (threshold - Inf = 0).
   (rep.pairs.len == 0, mn)
 
 proc auditSafeColors*(colors: openArray[Color],
