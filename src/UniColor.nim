@@ -4,10 +4,12 @@
 import UniColor/core/core
 import UniColor/math/math
 import UniColor/spaces/spaces
+import UniColor/conversion/conversion
 export core
 export math
 export spaces
+export conversion
 
 const
   UniColorVersion* = "0.1.0"
-  ucModuleMarkers* = [coreModule, mathModule, spacesModule]
+  ucModuleMarkers* = [coreModule, mathModule, spacesModule, conversionModule]

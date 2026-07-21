@@ -12,3 +12,11 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
+
+This product includes a port of Google's material-color-utilities
+(https://github.com/material-foundation/material-color-utilities), licensed
+under the Apache License, Version 2.0, in the CAM16 viewing conditions
+(conversion/cam16_view.nim) and the HCT solver (conversion/hct_solver.nim).
+The port preserves the algorithm and constant tables; the Material DEFAULT
+viewing conditions are frozen. The original copyright notice and patent grant
+apply.
