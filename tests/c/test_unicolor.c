@@ -126,6 +126,46 @@ int main(void) {
   check_dbl("distance bad metric", uc_distance(red, white, "bogus"), NAN);
   check_dbl("distance identical", uc_distance(red, red, "deltaE_ok"), 0.0);
 
+  /* --- theme handle -------------------------------------------------- */
+
+  uc_color blue = uc_color_oklch(0.65f, 0.18f, 250.0f);
+
+  /* Primitives carry a color and a NULL alias; semantics carry an alias and
+   * leave the color unused. Build background + text.primary, then a semantic
+   * text.muted aliasing text.primary. */
+  uc_token prims[] = {
+    { "background",   red,  NULL },
+    { "text.primary", blue, NULL }
+  };
+  uc_token sems[] = {
+    { "text.muted", { 0, 0, 0, 0, 0 }, "text.primary" }
+  };
+  uc_theme *th = uc_theme_make(prims, 2, sems, 1, NULL, 0);
+  if (th == NULL) { printf("FAIL theme_make: NULL\n"); failures++; }
+  else printf("ok   theme_make\n");
+
+  check_int("theme count", uc_theme_count(th), 3);
+  check_int("theme has text.muted", uc_theme_has_role(th, "text.muted"), 1);
+  check_int("theme missing role", uc_theme_has_role(th, "nope"), 0);
+
+  /* text.muted aliases text.primary (blue) -> resolves to blue's tag. */
+  uc_color muted = uc_theme_resolve(th, "text.muted");
+  check_color_ok("theme resolve text.muted", muted);
+  check_int("theme resolve text.muted tag", uc_color_tag(muted), UC_TAG_OKLCH);
+  check_color_sentinel("theme resolve missing", uc_theme_resolve(th, "nope"));
+
+  /* Export to CSS: :root block with the two primitive vars. */
+  { char buf[256];
+    size_t n = uc_theme_export(th, "css", 0, buf, sizeof buf);
+    if (n == 0 || strstr(buf, "--background") == NULL) {
+      printf("FAIL theme_export css: \"%s\" (len %zu)\n", buf, n); failures++;
+    } else printf("ok   theme_export css = \"%s\" (len %zu)\n", buf, n); }
+  check_int("theme_export unknown format", (int)uc_theme_export(th, "nopefmt", 0, NULL, 0), 0);
+
+  uc_theme_free(th);
+  /* free(NULL) is a no-op (must not crash). */
+  uc_theme_free(NULL);
+
   if (failures == 0) { printf("\nAll C ABI tests passed.\n"); return 0; }
   printf("\n%d C ABI test(s) FAILED.\n", failures);
   return 1;

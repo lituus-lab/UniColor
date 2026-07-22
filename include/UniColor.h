@@ -121,6 +121,50 @@ double uc_contrast_metric(uc_color fg, uc_color bg, const char *metric);
  * failure. */
 double uc_distance(uc_color a, uc_color b, const char *metric);
 
+/* --- theme handle ----------------------------------------------------- */
+
+/* Opaque theme handle (a 3-layer token tree). The caller owns it; free with
+ * uc_theme_free. */
+typedef struct uc_theme uc_theme;
+
+/* A theme-tree node as the host passes it. `name` is the role; a primitive
+ * carries its `color` and leaves `alias` NULL, a semantic / component carries
+ * its `alias` target and leaves `color` unused. Field order and types match
+ * the Nim UcToken so an array of `uc_token` can be read in place. */
+typedef struct uc_token {
+  const char *name;
+  uc_color    color;
+  const char *alias;
+} uc_token;
+
+/* Build an immutable 3-layer token tree from parallel C token arrays. Returns
+ * NULL on a validation error (empty name, duplicate role, bad alias). The
+ * caller owns the handle; free it with uc_theme_free. */
+uc_theme *uc_theme_make(uc_token *prim, size_t nprim, uc_token *sem,
+    size_t nsem, uc_token *comp, size_t ncomp);
+
+/* Release a theme handle and its token-tree storage. NULL is a no-op. */
+void uc_theme_free(uc_theme *t);
+
+/* Resolve a role to a color (component -> semantic -> primitive). Returns the
+ * sentinel on a NULL handle / role, an undefined role, a dangling alias, or a
+ * cycle. */
+uc_color uc_theme_resolve(uc_theme *t, const char *role);
+
+/* Total tokens across the three layers (0 for NULL). */
+int uc_theme_count(uc_theme *t);
+
+/* 1 if `role` is defined in any layer, else 0 (0 for NULL handle / role). */
+int uc_theme_has_role(uc_theme *t, const char *role);
+
+/* Render the theme to a registered format string ("css", "json", "tailwind",
+ * ...). `legacy` non-zero emits sRGB legacy hex instead of OKLCH. Writes up to
+ * size-1 bytes + NUL into buf and returns the required length (excl. NUL);
+ * measure-only when buf is NULL / size is 0; 0 on a NULL handle / name or an
+ * unknown format. */
+size_t uc_theme_export(uc_theme *t, const char *name, int legacy, char *buf,
+    size_t size);
+
 #ifdef __cplusplus
 }
 #endif

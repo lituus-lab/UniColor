@@ -6,7 +6,6 @@
 ## color-producing procs return a sentinel `uc_color` with `tag == UC_TAG_UNKNOWN`
 ## (0); numeric procs return NaN on failure; string procs use a measure+fill
 ## buffer that returns the required length (0 on failure).
-import std/math
 import ../UniColor
 
 const
@@ -23,6 +22,17 @@ type
   UcColor = object
     comps: array[4, float32]
     tag: int32
+
+  # Layout twin of the C `uc_token` struct: a theme-tree node as the C host
+  # passes it (parallel arrays of these become the primitive / semantic /
+  # component layers). `name` is the role; a primitive carries its `color` and
+  # leaves `alias` NULL, a semantic / component carries its `alias` target and
+  # leaves `color` unused. Field order and types match the C struct so an array
+  # of `uc_token` can be reinterpreted as `UncheckedArray[UcToken]`.
+  UcToken = object
+    name: cstring
+    color: UcColor
+    alias: cstring
 
 const ucColorInvalid = UcColor(comps: [0.0'f32, 0.0'f32, 0.0'f32, 0.0'f32], tag: 0)
 
@@ -43,6 +53,20 @@ proc fromUc(u: UcColor): Color {.raises: [].} =
 # top-level `discard registerX(...)` side effects, so a host program MUST call
 # `uc_init` once before any registry-based proc.
 proc nimMainC() {.importc: "NimMain", cdecl, raises: [].}
+
+# Measure+fill buffer writer shared by every string-producing proc. Writes up to
+# `size-1` bytes + NUL into `buf` and returns the required length (excl. NUL).
+# If `buf` is NULL or `size` is 0, returns the required length without writing.
+proc writeBuf(s: string, buf: ptr char, size: csize_t): csize_t {.raises: [].} =
+  let req = s.len
+  if buf.isNil or size == 0:
+    return csize_t(req)
+  let arr = cast[ptr UncheckedArray[char]](buf)
+  let cap = if csize_t(req) < size: req else: int(size) - 1
+  for i in 0 ..< cap:
+    arr[i] = s[i]
+  arr[cap] = '\0'
+  csize_t(req)
 
 # Unmangled C symbols, C calling convention, exported from the shared lib.
 {.push exportc, cdecl, dynlib.}
@@ -101,16 +125,7 @@ proc uc_format_css(c: UcColor, legacy: cint, buf: ptr char,
   let col = fromUc(c)
   if col.spaceTag == tagUnknown:
     return 0.csize_t
-  let s = formatColorCss(col, legacy != 0)
-  let req = s.len
-  if buf.isNil or size == 0:
-    return csize_t(req)
-  let arr = cast[ptr UncheckedArray[char]](buf)
-  let cap = if csize_t(req) < size: req else: int(size) - 1
-  for i in 0 ..< cap:
-    arr[i] = s[i]
-  arr[cap] = '\0'
-  csize_t(req)
+  writeBuf(formatColorCss(col, legacy != 0), buf, size)
 
 proc uc_color_components(c: UcColor, c0, c1, c2: ptr cfloat) {.raises: [].} =
   ## Write the 3 chromatic components. A sentinel `c` writes zeros. Null `c0`/
@@ -175,5 +190,71 @@ proc uc_distance(a, b: UcColor, metric: cstring): cdouble {.raises: [].} =
     return NaN
   let r = distance(x, y, $metric)
   if r.isOk: cdouble(r.get) else: NaN
+
+# --- theme handle -----------------------------------------------------
+
+# Read a C token array into a Nim ThemeToken seq. Primitives carry their color
+# and an empty alias; semantics / components carry their alias target. NULL
+# strings become "" (a primitive's alias, or a NULL array -> empty seq).
+proc readTokens(a: ptr UcToken, n: csize_t): seq[ThemeToken] {.raises: [].} =
+  if a.isNil or n == 0:
+    return @[]
+  let arr = cast[ptr UncheckedArray[UcToken]](a)
+  let last = if n > csize_t(high(int)): high(int) else: int(n) - 1
+  result = newSeqOfCap[ThemeToken](last + 1)
+  for i in 0 .. last:
+    let t = arr[i]
+    result.add(ThemeToken(name: if t.name.isNil: "" else: $t.name,
+        color: fromUc(t.color), alias: if t.alias.isNil: "" else: $t.alias))
+
+proc uc_theme_make(prim: ptr UcToken, nprim: csize_t, sem: ptr UcToken,
+    nsem: csize_t, comp: ptr UcToken, ncomp: csize_t): ptr Theme {.raises: [].} =
+  ## Build an immutable 3-layer token tree from parallel C token arrays. Returns
+  ## NULL on a validation error (empty name, duplicate role, bad alias). The
+  ## caller owns the handle; free it with `uc_theme_free`.
+  let r = theme(readTokens(prim, nprim), readTokens(sem, nsem),
+      readTokens(comp, ncomp))
+  if r.isErr:
+    return nil
+  let p = cast[ptr Theme](alloc0(sizeof(Theme)))
+  p[] = r.get
+  p
+
+proc uc_theme_free(t: ptr Theme) {.raises: [].} =
+  ## Release a theme handle and its token-tree storage. NULL is a no-op.
+  if not t.isNil:
+    `=destroy`(t[])
+    dealloc(t)
+
+proc uc_theme_resolve(t: ptr Theme, role: cstring): UcColor {.raises: [].} =
+  ## Resolve a role to a color (component -> semantic -> primitive). Returns the
+  ## sentinel on a NULL handle / role, an undefined role, a dangling alias, or a
+  ## cycle.
+  if t.isNil or role.isNil:
+    return ucColorInvalid
+  let r = t[].resolve($role)
+  if r.isOk: toUc(r.get) else: ucColorInvalid
+
+proc uc_theme_count(t: ptr Theme): cint {.raises: [].} =
+  ## Total tokens across the three layers (0 for NULL).
+  if t.isNil: 0 else: cint(t[].count)
+
+proc uc_theme_has_role(t: ptr Theme, role: cstring): cint {.raises: [].} =
+  ## 1 if `role` is defined in any layer, else 0 (0 for NULL handle / role).
+  if t.isNil or role.isNil: 0 elif t[].hasRole($role): 1 else: 0
+
+proc uc_theme_export(t: ptr Theme, name: cstring, legacy: cint, buf: ptr char,
+    size: csize_t): csize_t {.raises: [].} =
+  ## Render the theme to a registered format string ("css", "json", "tailwind",
+  ## ...). `legacy` non-zero emits sRGB legacy hex instead of OKLCH. Writes up to
+  ## `size-1` bytes + NUL into `buf` and returns the required length (excl. NUL);
+  ## measure-only when `buf` is NULL / `size` is 0; 0 on a NULL handle / name or
+  ## an unknown format.
+  if t.isNil or name.isNil:
+    return 0.csize_t
+  var opts = defaultExportOpts()
+  opts.legacySrgb = legacy != 0
+  let r = exportTheme(t[], $name, opts)
+  if r.isErr: 0.csize_t else: writeBuf(r.get, buf, size)
 
 {.pop.}
