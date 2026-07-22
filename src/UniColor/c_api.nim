@@ -19,7 +19,7 @@ const
 # `tag == 0` (tagUnknown) is the failure marker for color-producing procs; the
 # validating `color()` ctor never emits it, so a caller can trust a non-zero tag.
 type
-  UcColor = object
+  UcColor* = object
     comps: array[4, float32]
     tag: int32
 
@@ -125,7 +125,7 @@ proc uc_abi_patch(): cint = AbiPatch.cint
 
 # --- color core -------------------------------------------------------
 
-proc uc_color_make(tag: cint, c0, c1, c2: cfloat, alpha: cfloat): UcColor {.
+proc uc_color_make*(tag: cint, c0, c1, c2: cfloat, alpha: cfloat): UcColor {.
     raises: [].} =
   ## Validating constructor (wraps `color`). Returns a sentinel uc_color
   ## (`tag == UC_TAG_UNKNOWN`) on rejection: unknown space, alpha ∉ [0,1], or a
@@ -134,15 +134,15 @@ proc uc_color_make(tag: cint, c0, c1, c2: cfloat, alpha: cfloat): UcColor {.
       float32(alpha))
   if r.isOk: toUc(r.get) else: ucColorInvalid
 
-proc uc_color_srgb(r, g, b: cfloat): UcColor {.raises: [].} =
+proc uc_color_srgb*(r, g, b: cfloat): UcColor {.raises: [].} =
   ## Opaque sRGB color (alpha 1). Sentinel on NaN/Inf components.
   uc_color_make(cint(id(tagSrgb)), r, g, b, 1.0'f32)
 
-proc uc_color_oklch(l, c, h: cfloat): UcColor {.raises: [].} =
+proc uc_color_oklch*(l, c, h: cfloat): UcColor {.raises: [].} =
   ## Opaque OKLCH color (alpha 1). Sentinel on NaN/Inf components.
   uc_color_make(cint(id(tagOklch)), l, c, h, 1.0'f32)
 
-proc uc_parse(s: cstring): UcColor {.raises: [].} =
+proc uc_parse*(s: cstring): UcColor {.raises: [].} =
   ## Parse a CSS Color 4 string (hex / rgb() / oklch()). Returns the sentinel on
   ## a NULL input, a malformed string, or a deferred form (oklab/lab/lch/color/
   ## hsl/hwb). `s` is NUL-terminated; do not free.
@@ -151,7 +151,7 @@ proc uc_parse(s: cstring): UcColor {.raises: [].} =
   let r = parseColor($s)
   if r.isOk: toUc(r.get) else: ucColorInvalid
 
-proc uc_format_css(c: UcColor, legacy: cint, buf: ptr char,
+proc uc_format_css*(c: UcColor, legacy: cint, buf: ptr char,
     size: csize_t): csize_t {.
     raises: [].} =
   ## Format a color as CSS: `#rrggbb[aa]` when `legacy` is non-zero, else
@@ -181,7 +181,7 @@ proc uc_color_tag(c: UcColor): cint {.raises: [].} =
   ## The SpaceTag as a raw int32 (UC_TAG_UNKNOWN == 0 for the sentinel).
   cint(c.tag)
 
-proc uc_gamut_map(c: UcColor, target: cint): UcColor {.raises: [].} =
+proc uc_gamut_map*(c: UcColor, target: cint): UcColor {.raises: [].} =
   ## Gamut-map `c` into the `target` space. Returns the sentinel on a sentinel
   ## input or an unknown target.
   let col = fromUc(c)
@@ -190,7 +190,7 @@ proc uc_gamut_map(c: UcColor, target: cint): UcColor {.raises: [].} =
   let r = gamutMap(col, SpaceTag(int32(target)))
   if r.isOk: toUc(r.get) else: ucColorInvalid
 
-proc uc_convert(c: UcColor, target: cint): UcColor {.raises: [].} =
+proc uc_convert*(c: UcColor, target: cint): UcColor {.raises: [].} =
   ## Convert `c` to the `target` space (wraps `to`). Returns the sentinel on a
   ## sentinel input or an unknown target.
   let col = fromUc(c)
@@ -199,7 +199,7 @@ proc uc_convert(c: UcColor, target: cint): UcColor {.raises: [].} =
   let r = to(col, SpaceTag(int32(target)))
   if r.isOk: toUc(r.get) else: ucColorInvalid
 
-proc uc_contrast(fg, bg: UcColor): cdouble {.raises: [].} =
+proc uc_contrast*(fg, bg: UcColor): cdouble {.raises: [].} =
   ## WCAG 2.2 contrast ratio (default metric). NaN on a sentinel operand or a
   ## metric failure.
   let f = fromUc(fg)
@@ -209,7 +209,7 @@ proc uc_contrast(fg, bg: UcColor): cdouble {.raises: [].} =
   let r = contrast(f, b)
   if r.isOk: cdouble(r.get) else: NaN
 
-proc uc_contrast_metric(fg, bg: UcColor, metric: cstring): cdouble {.raises: [].} =
+proc uc_contrast_metric*(fg, bg: UcColor, metric: cstring): cdouble {.raises: [].} =
   ## Contrast ratio under a named metric ("wcag22" / "apca" / "bridgepca"). NaN
   ## on a sentinel operand, a NULL metric, an unknown metric, or a failure.
   let f = fromUc(fg)
@@ -219,7 +219,7 @@ proc uc_contrast_metric(fg, bg: UcColor, metric: cstring): cdouble {.raises: [].
   let r = contrast(f, b, $metric)
   if r.isOk: cdouble(r.get) else: NaN
 
-proc uc_distance(a, b: UcColor, metric: cstring): cdouble {.raises: [].} =
+proc uc_distance*(a, b: UcColor, metric: cstring): cdouble {.raises: [].} =
   ## Perceptual distance under a named metric (deltaE76/94/2000/cmc/ok/itp/jz/
   ## cam16Ucs). NaN on a sentinel operand, a NULL metric, an unknown metric, or
   ## a failure.
@@ -245,7 +245,7 @@ proc uc_theme_free(t: ptr Theme) {.raises: [].} =
   ## Release a theme handle and its token-tree storage. NULL is a no-op.
   unbox(t)
 
-proc uc_theme_resolve(t: ptr Theme, role: cstring): UcColor {.raises: [].} =
+proc uc_theme_resolve*(t: ptr Theme, role: cstring): UcColor {.raises: [].} =
   ## Resolve a role to a color (component -> semantic -> primitive). Returns the
   ## sentinel on a NULL handle / role, an undefined role, a dangling alias, or a
   ## cycle.
@@ -295,7 +295,7 @@ proc uc_palette_free(p: ptr Palette) {.raises: [].} =
   ## Release a palette handle and its color/role storage. NULL is a no-op.
   unbox(p)
 
-proc uc_palette_color_at(p: ptr Palette, i: cint): UcColor {.raises: [].} =
+proc uc_palette_color_at*(p: ptr Palette, i: cint): UcColor {.raises: [].} =
   ## Discrete index for the five discrete structures. Sentinel on a NULL handle,
   ## a `Continuous`/`Semantic` palette, or an out-of-range index.
   if p.isNil:
@@ -303,7 +303,7 @@ proc uc_palette_color_at(p: ptr Palette, i: cint): UcColor {.raises: [].} =
   let r = p[].colorAt(int(i))
   if r.isOk: toUc(r.get) else: ucColorInvalid
 
-proc uc_palette_sample(p: ptr Palette, t: cdouble): UcColor {.raises: [].} =
+proc uc_palette_sample*(p: ptr Palette, t: cdouble): UcColor {.raises: [].} =
   ## Ordered-ramp sample at `t` in [0,1]. Sentinel on a NULL handle, a non-ramp
   ## structure, or `t` outside [0,1].
   if p.isNil:
@@ -311,7 +311,7 @@ proc uc_palette_sample(p: ptr Palette, t: cdouble): UcColor {.raises: [].} =
   let r = p[].sample(t)
   if r.isOk: toUc(r.get) else: ucColorInvalid
 
-proc uc_palette_role(p: ptr Palette, role: cstring): UcColor {.raises: [].} =
+proc uc_palette_role*(p: ptr Palette, role: cstring): UcColor {.raises: [].} =
   ## Role access for a `Semantic` palette. Sentinel on a NULL handle/role, a
   ## non-Semantic structure, or an unknown role.
   if p.isNil or role.isNil:

@@ -60,6 +60,53 @@ task cli, "Build the unicolor CLI":
   exec "nim c -d:release --path:src -o:" & cliExe &
        " src/UniColor/cli/cli.nim"
 
+# emcc EXPORTED_FUNCTIONS: the uc_wasm_* color adapters (emscripten's JS wrappers
+# cannot marshal the 20-byte uc_color struct by value) plus the handle / string
+# uc_* the JS glue calls directly. Single-quoted, emcc's array syntax; the
+# surrounding ['...'] is added in the task exec below.
+const
+  wasmOut = "build/wasm/unicolor.js"
+  wasmExports = "_uc_init','_uc_version','_uc_abi_major','_uc_abi_minor','_uc_abi_patch'," &
+    "'_uc_format_css','_uc_wasm_parse','_uc_wasm_make','_uc_wasm_srgb'," &
+    "'_uc_wasm_oklch','_uc_wasm_format_css'," &
+    "'_uc_wasm_convert','_uc_wasm_gamut_map','_uc_wasm_theme_resolve'," &
+    "'_uc_wasm_palette_color_at','_uc_wasm_palette_sample','_uc_wasm_palette_role'," &
+    "'_uc_wasm_contrast','_uc_wasm_contrast_metric','_uc_wasm_distance'," &
+    "'_uc_theme_make','_uc_theme_free','_uc_theme_count','_uc_theme_has_role'," &
+    "'_uc_theme_export','_uc_palette_make','_uc_palette_free','_uc_palette_len'," &
+    "'_uc_palette_tag','_uc_palette_intent','_uc_import_theme','_uc_import_palette'," &
+    "'_uc_import_reported','_uc_import_report_free','_uc_import_format_name'," &
+    "'_uc_import_schema_version','_uc_import_warning_count','_uc_import_warning'," &
+    "'_uc_validate_theme','_uc_validate_palette','_uc_validation_free'," &
+    "'_uc_validation_score','_uc_validation_worst','_uc_validation_rule_count'," &
+    "'_uc_validation_rule_name','_uc_validation_rule_severity','_uc_validation_rule_metric'," &
+    "'_uc_validation_rule_threshold','_uc_validation_rule_message','_malloc','_free"
+  wasmRt = "ccall','cwrap','UTF8ToString','getValue','setValue','stringToUTF8'," &
+    "'lengthBytesUTF8"
+
+task wasm, "Build the WASM module (unicolor.wasm + JS glue) via emscripten":
+  # Nim -> C (emcc as the clang frontend) -> emcc link. --threads:off: the C ABI
+  # is single-threaded; pthreads would need a worker and -s USE_PTHREADS.
+  #
+  # The link flags go to a response file: the EXPORTED_* arrays are emcc's
+  # single-quoted JS syntax (`['_uc_init',...]`), and embedding those single
+  # quotes inside a double-quoted `--passL:"..."` breaks nimscript's `sh -c`
+  # quoting. A response file is whitespace-split, so each `-s FLAG=[...]` (no
+  # spaces) is one token, and the quotes reach emcc verbatim.
+  exec "mkdir -p build/wasm"
+  writeFile("build/wasm/flags.txt",
+    "-s WASM=1\n" &
+    "-s MODULARIZE=1\n" &
+    "-s EXPORT_NAME=UniColorModule\n" &
+    "-s EXPORTED_FUNCTIONS=['" & wasmExports & "']\n" &
+    "-s EXPORTED_RUNTIME_METHODS=['" & wasmRt & "']\n" &
+    "-s ALLOW_MEMORY_GROWTH=1\n")
+  exec "nim c --noMain --mm:arc --threads:off -d:release --path:src" &
+    " --os:linux --cpu=wasm32 --cc:clang --clang.exe=emcc --clang.linkerexe=emcc" &
+    " --passC:\"-s WASM=1 -O2\"" &
+    " --passL:@build/wasm/flags.txt" &
+    " -o:" & wasmOut & " src/UniColor/wasm/wasm.nim"
+
 # Nim takes `-o:` literally and appends no platform extension.
 const
   sharedLib =
