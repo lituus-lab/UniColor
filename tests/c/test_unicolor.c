@@ -44,6 +44,12 @@ static void check_color_sentinel(const char *name, uc_color c) {
   else printf("ok   %s = sentinel\n", name);
 }
 
+/* A handle proc returns NULL on failure. */
+static void check_ptr_null(const char *name, void *got) {
+  if (got != NULL) { printf("FAIL %s: expected NULL, got %p\n", name, got); failures++; }
+  else printf("ok   %s = NULL\n", name);
+}
+
 int main(void) {
   uc_init(); /* populate the contrast / spaces / import / export registries. */
 
@@ -165,6 +171,34 @@ int main(void) {
   uc_theme_free(th);
   /* free(NULL) is a no-op (must not crash). */
   uc_theme_free(NULL);
+
+  /* --- palette handle ------------------------------------------------ */
+
+  /* Ordered 3-color ramp: colorAt indexes, sample blends, len/tag/intent. */
+  uc_color ramp[] = { red, blue, white };
+  uc_palette *pal = uc_palette_make(UC_PAL_TAG_ORDERED, ramp, 3,
+      UC_PAL_INTENT_SEQUENTIAL, 0);
+  if (pal == NULL) { printf("FAIL palette_make: NULL\n"); failures++; }
+  else printf("ok   palette_make\n");
+  check_int("palette len", uc_palette_len(pal), 3);
+  check_int("palette tag", uc_palette_tag(pal), UC_PAL_TAG_ORDERED);
+  check_int("palette intent", uc_palette_intent(pal), UC_PAL_INTENT_SEQUENTIAL);
+  check_color_ok("palette color_at 0", uc_palette_color_at(pal, 0));
+  check_int("palette color_at 0 tag", uc_color_tag(uc_palette_color_at(pal, 0)),
+      UC_TAG_SRGB);
+  check_color_sentinel("palette color_at oob", uc_palette_color_at(pal, 9));
+  { uc_color mid = uc_palette_sample(pal, 0.5);
+    check_color_ok("palette sample 0.5", mid); }
+  check_color_sentinel("palette sample oob", uc_palette_sample(pal, 2.0));
+
+  /* Rejected: empty colors -> NULL; bad tag -> NULL. */
+  check_ptr_null("palette empty", uc_palette_make(UC_PAL_TAG_ORDERED, NULL, 0,
+      UC_PAL_INTENT_SEQUENTIAL, 0));
+  check_ptr_null("palette bad tag", uc_palette_make(999, ramp, 3,
+      UC_PAL_INTENT_SEQUENTIAL, 0));
+
+  uc_palette_free(pal);
+  uc_palette_free(NULL);
 
   if (failures == 0) { printf("\nAll C ABI tests passed.\n"); return 0; }
   printf("\n%d C ABI test(s) FAILED.\n", failures);

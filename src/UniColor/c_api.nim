@@ -68,6 +68,30 @@ proc writeBuf(s: string, buf: ptr char, size: csize_t): csize_t {.raises: [].} =
   arr[cap] = '\0'
   csize_t(req)
 
+# Read a C token array into a Nim ThemeToken seq. Primitives carry their color
+# and an empty alias; semantics / components carry their alias target. NULL
+# strings become "" (a primitive's alias, or a NULL array -> empty seq).
+proc readTokens(a: ptr UcToken, n: csize_t): seq[ThemeToken] {.raises: [].} =
+  if a.isNil or n == 0:
+    return @[]
+  let arr = cast[ptr UncheckedArray[UcToken]](a)
+  let last = if n > csize_t(high(int)): high(int) else: int(n) - 1
+  result = newSeqOfCap[ThemeToken](last + 1)
+  for i in 0 .. last:
+    let t = arr[i]
+    result.add(ThemeToken(name: if t.name.isNil: "" else: $t.name,
+        color: fromUc(t.color), alias: if t.alias.isNil: "" else: $t.alias))
+
+# Read a C uc_color array into a Nim Color seq (NULL / 0 -> empty).
+proc readColors(a: ptr UcColor, n: csize_t): seq[Color] {.raises: [].} =
+  if a.isNil or n == 0:
+    return @[]
+  let arr = cast[ptr UncheckedArray[UcColor]](a)
+  let last = if n > csize_t(high(int)): high(int) else: int(n) - 1
+  result = newSeqOfCap[Color](last + 1)
+  for i in 0 .. last:
+    result.add(fromUc(arr[i]))
+
 # Unmangled C symbols, C calling convention, exported from the shared lib.
 {.push exportc, cdecl, dynlib.}
 
@@ -193,20 +217,6 @@ proc uc_distance(a, b: UcColor, metric: cstring): cdouble {.raises: [].} =
 
 # --- theme handle -----------------------------------------------------
 
-# Read a C token array into a Nim ThemeToken seq. Primitives carry their color
-# and an empty alias; semantics / components carry their alias target. NULL
-# strings become "" (a primitive's alias, or a NULL array -> empty seq).
-proc readTokens(a: ptr UcToken, n: csize_t): seq[ThemeToken] {.raises: [].} =
-  if a.isNil or n == 0:
-    return @[]
-  let arr = cast[ptr UncheckedArray[UcToken]](a)
-  let last = if n > csize_t(high(int)): high(int) else: int(n) - 1
-  result = newSeqOfCap[ThemeToken](last + 1)
-  for i in 0 .. last:
-    let t = arr[i]
-    result.add(ThemeToken(name: if t.name.isNil: "" else: $t.name,
-        color: fromUc(t.color), alias: if t.alias.isNil: "" else: $t.alias))
-
 proc uc_theme_make(prim: ptr UcToken, nprim: csize_t, sem: ptr UcToken,
     nsem: csize_t, comp: ptr UcToken, ncomp: csize_t): ptr Theme {.raises: [].} =
   ## Build an immutable 3-layer token tree from parallel C token arrays. Returns
@@ -256,5 +266,67 @@ proc uc_theme_export(t: ptr Theme, name: cstring, legacy: cint, buf: ptr char,
   opts.legacySrgb = legacy != 0
   let r = exportTheme(t[], $name, opts)
   if r.isErr: 0.csize_t else: writeBuf(r.get, buf, size)
+
+# --- palette handle ---------------------------------------------------
+
+proc uc_palette_make(tag: cint, colors: ptr UcColor, ncolors: csize_t,
+    intent: cint, seed: int64): ptr Palette {.raises: [].} =
+  ## Build an immutable palette from a C color array. `tag` is a UC_PAL_TAG_*
+  ## ordinal, `intent` a UC_PAL_INTENT_* ordinal. Returns NULL on an out-of-
+  ## range tag/intent or empty colors. The caller owns the handle; free with
+  ## `uc_palette_free`. (Semantic role maps are not exposed over this ABI.)
+  if tag < 0 or tag > cint(ord(palSemantic)) or intent < 0 or
+      intent > cint(ord(intentTerminal)):
+    return nil
+  let r = palette(cast[PaletteTag](int(tag)), readColors(colors, ncolors),
+      cast[PaletteIntent](int(intent)), seed)
+  if r.isErr:
+    nil
+  else:
+    let p = cast[ptr Palette](alloc0(sizeof(Palette)))
+    p[] = r.get
+    p
+
+proc uc_palette_free(p: ptr Palette) {.raises: [].} =
+  ## Release a palette handle and its color/role storage. NULL is a no-op.
+  if not p.isNil:
+    `=destroy`(p[])
+    dealloc(p)
+
+proc uc_palette_color_at(p: ptr Palette, i: cint): UcColor {.raises: [].} =
+  ## Discrete index for the five discrete structures. Sentinel on a NULL handle,
+  ## a `Continuous`/`Semantic` palette, or an out-of-range index.
+  if p.isNil:
+    return ucColorInvalid
+  let r = p[].colorAt(int(i))
+  if r.isOk: toUc(r.get) else: ucColorInvalid
+
+proc uc_palette_sample(p: ptr Palette, t: cdouble): UcColor {.raises: [].} =
+  ## Ordered-ramp sample at `t` in [0,1]. Sentinel on a NULL handle, a non-ramp
+  ## structure, or `t` outside [0,1].
+  if p.isNil:
+    return ucColorInvalid
+  let r = p[].sample(t)
+  if r.isOk: toUc(r.get) else: ucColorInvalid
+
+proc uc_palette_role(p: ptr Palette, role: cstring): UcColor {.raises: [].} =
+  ## Role access for a `Semantic` palette. Sentinel on a NULL handle/role, a
+  ## non-Semantic structure, or an unknown role.
+  if p.isNil or role.isNil:
+    return ucColorInvalid
+  let r = p[].role($role)
+  if r.isOk: toUc(r.get) else: ucColorInvalid
+
+proc uc_palette_len(p: ptr Palette): cint {.raises: [].} =
+  ## Number of colors (0 for NULL).
+  if p.isNil: 0 else: cint(p[].len)
+
+proc uc_palette_tag(p: ptr Palette): cint {.raises: [].} =
+  ## The structure tag as a UC_PAL_TAG_* ordinal (0 for NULL).
+  if p.isNil: 0 else: cint(ord(p[].tag))
+
+proc uc_palette_intent(p: ptr Palette): cint {.raises: [].} =
+  ## The intent as a UC_PAL_INTENT_* ordinal (0 for NULL).
+  if p.isNil: 0 else: cint(ord(p[].intent))
 
 {.pop.}

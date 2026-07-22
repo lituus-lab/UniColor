@@ -165,6 +165,61 @@ int uc_theme_has_role(uc_theme *t, const char *role);
 size_t uc_theme_export(uc_theme *t, const char *name, int legacy, char *buf,
     size_t size);
 
+/* --- palette handle --------------------------------------------------- */
+
+/* PaletteTag ordinals — which indexing mode is valid (colorAt / sample / role).
+ * Frozen (add = minor, remove/recode = major). */
+#define UC_PAL_TAG_ORDERED     0
+#define UC_PAL_TAG_UNORDERED   1
+#define UC_PAL_TAG_SCIENTIFIC  2
+#define UC_PAL_TAG_TERMINAL    3
+#define UC_PAL_TAG_CATEGORICAL 4
+#define UC_PAL_TAG_CONTINUOUS  5
+#define UC_PAL_TAG_SEMANTIC    6
+
+/* PaletteIntent ordinals — metadata orthogonal to the structure. */
+#define UC_PAL_INTENT_QUALITATIVE  0
+#define UC_PAL_INTENT_SEQUENTIAL   1
+#define UC_PAL_INTENT_DIVERGING    2
+#define UC_PAL_INTENT_UI           3
+#define UC_PAL_INTENT_SCIENTIFIC   4
+#define UC_PAL_INTENT_CATEGORICAL  5
+#define UC_PAL_INTENT_TERMINAL     6
+
+/* Opaque palette handle. The caller owns it; free with uc_palette_free. */
+typedef struct uc_palette uc_palette;
+
+/* Build an immutable palette from a C color array. `tag` is a UC_PAL_TAG_*
+ * ordinal, `intent` a UC_PAL_INTENT_* ordinal. Returns NULL on an out-of-range
+ * tag/intent or empty colors. The caller owns the handle; free with
+ * uc_palette_free. (Semantic role maps are not exposed over this ABI.) */
+uc_palette *uc_palette_make(int tag, uc_color *colors, size_t ncolors,
+    int intent, int64_t seed);
+
+/* Release a palette handle and its color/role storage. NULL is a no-op. */
+void uc_palette_free(uc_palette *p);
+
+/* Discrete index for the five discrete structures. Sentinel on a NULL handle,
+ * a Continuous/Semantic palette, or an out-of-range index. */
+uc_color uc_palette_color_at(uc_palette *p, int i);
+
+/* Ordered-ramp sample at t in [0,1]. Sentinel on a NULL handle, a non-ramp
+ * structure, or t outside [0,1]. */
+uc_color uc_palette_sample(uc_palette *p, double t);
+
+/* Role access for a Semantic palette. Sentinel on a NULL handle/role, a
+ * non-Semantic structure, or an unknown role. */
+uc_color uc_palette_role(uc_palette *p, const char *role);
+
+/* Number of colors (0 for NULL). */
+int uc_palette_len(uc_palette *p);
+
+/* The structure tag as a UC_PAL_TAG_* ordinal (0 for NULL). */
+int uc_palette_tag(uc_palette *p);
+
+/* The intent as a UC_PAL_INTENT_* ordinal (0 for NULL). */
+int uc_palette_intent(uc_palette *p);
+
 #ifdef __cplusplus
 }
 #endif
