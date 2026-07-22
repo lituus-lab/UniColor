@@ -2,6 +2,7 @@
 # Copyright 2026 lituus-lab
 import std/unittest
 import std/options # `isSome` / `isNone` on `Option`.
+import std/strutils # `contains` substring on rule messages.
 import UniColor
 
 # Built-ins bootstrap at import: one theme rule ("contrast-text-primary") and
@@ -55,6 +56,7 @@ suite "contrast-text-primary rule":
     check c.name == "contrast-text-primary"
     check c.severity == Severity.Info
     check c.metric >= ContrastAA
+    check c.message.contains("on bg contrast")
 
   test "light gray on white fails AA":
     let prims = [ThemeToken(name: "text.primary", color: lightGray),
@@ -81,6 +83,7 @@ suite "contrast-text-primary rule":
     let r = validateTheme(t)
     check r.worst == Severity.Info
     check r.results[0].severity == Severity.Info
+    check r.results[0].message.contains("on surface contrast")
 
 suite "min-delta-e rule":
   test "okabeIto (8 distinct) passes":

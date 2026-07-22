@@ -129,8 +129,19 @@ proc lookupPaletteRule*(name: string): Option[PaletteRule] {.raises: [].} =
 proc themeRuleCount*(): int {.raises: [].} = themeRuleNames.len
 proc paletteRuleCount*(): int {.raises: [].} = paletteRuleNames.len
 
-proc themeRuleNamesList*(): seq[string] {.raises: [].} = themeRuleNames
-proc paletteRuleNamesList*(): seq[string] {.raises: [].} = paletteRuleNames
+proc themeRuleNamesList*(): seq[string] {.raises: [].} =
+  ## Fresh copy of the insertion-ordered name list — callers cannot mutate the
+  ## registry's internal sequence.
+  result = newSeqOfCap[string](themeRuleNames.len)
+  for n in themeRuleNames:
+    result.add(n)
+
+proc paletteRuleNamesList*(): seq[string] {.raises: [].} =
+  ## Fresh copy of the insertion-ordered name list — callers cannot mutate the
+  ## registry's internal sequence.
+  result = newSeqOfCap[string](paletteRuleNames.len)
+  for n in paletteRuleNames:
+    result.add(n)
 
 proc sealThemeRules*() {.raises: [].} = themeRulesSealed = true
 proc sealPaletteRules*() {.raises: [].} = paletteRulesSealed = true
@@ -153,12 +164,15 @@ proc validatePalette*(p: Palette): ValidationReport {.raises: [].} =
 
 # Built-in rules (registered at import).
 
-# Resolve a background-like role: `bg` if present, else `surface`.
-proc resolveBg(t: Theme): Result[Color, ColorError] {.raises: [].} =
+# Resolve a background-like role: `bg` if present, else `surface`. Returns the
+# chosen role NAME alongside the color so the contrast diagnostic can report
+# which surface was used (instead of always saying "bg").
+proc resolveBg(t: Theme): tuple[role: string, res: Result[Color,
+    ColorError]] {.raises: [].} =
   let bgR = t.resolve("bg")
   if bgR.isOk:
-    return bgR
-  t.resolve("surface")
+    return (role: "bg", res: bgR)
+  (role: "surface", res: t.resolve("surface"))
 
 # text.primary on the background surface must meet WCAG 2.2 AA (contrast >=
 # 4.5). An unresolved role is `Error` (the theme cannot be audited); below AA
@@ -172,13 +186,13 @@ proc contrastTextPrimaryCheck(t: Theme): RuleResult {.raises: [].} =
     msg.add($textR.error.kind)
     return RuleResult(name: name, severity: Severity.Error, metric: NaN,
         threshold: ContrastAA, message: msg)
-  let bgR = resolveBg(t)
-  if bgR.isErr:
+  let bg = resolveBg(t)
+  if bg.res.isErr:
     var msg = name & ": no bg/surface role resolved: "
-    msg.add($bgR.error.kind)
+    msg.add($bg.res.error.kind)
     return RuleResult(name: name, severity: Severity.Error, metric: NaN,
         threshold: ContrastAA, message: msg)
-  let cR = contrast(textR.get, bgR.get) # default WCAG 2.2.
+  let cR = contrast(textR.get, bg.res.get) # default WCAG 2.2.
   if cR.isErr:
     var msg = name & ": contrast metric failed: "
     msg.add($cR.error.kind)
@@ -187,9 +201,13 @@ proc contrastTextPrimaryCheck(t: Theme): RuleResult {.raises: [].} =
   let ratio = cR.get
   var msg = name & ": "
   if ratio < ContrastAA:
-    msg.add("FAIL AA, text.primary on bg contrast ")
+    msg.add("FAIL AA, text.primary on ")
+    msg.add(bg.role)
+    msg.add(" contrast ")
   else:
-    msg.add("pass AA, text.primary on bg contrast ")
+    msg.add("pass AA, text.primary on ")
+    msg.add(bg.role)
+    msg.add(" contrast ")
   msg.add(formatFloat(ratio, ffDecimal, 3))
   msg.add(if ratio < ContrastAA: " < " else: " >= ")
   msg.add($ContrastAA)
