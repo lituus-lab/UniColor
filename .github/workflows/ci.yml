@@ -141,6 +141,34 @@ jobs:
           name: unicolor-wheel-${{ matrix.os }}
           path: py/dist/repaired/*.whl
 
+  wasm:
+    name: WASM (Emscripten)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { persist-credentials: false }
+      - uses: jiro4989/setup-nim-action@v2
+        with:
+          nim-version: '2.2.10'
+      - run: nimble install -y
+      # No runner image ships emscripten. Pin the SDK to the version the glue is
+      # developed against: a future emcc major could move the wasm32 ABI or the
+      # i64 / 20-byte struct marshalling the uc_wasm_* adapters rely on.
+      - uses: emscripten-core/setup-emsdk@v16
+        with:
+          version: 6.0.2
+      - run: nimble wasm
+      - run: nimble wasmTest
+      - name: Upload WASM
+        uses: actions/upload-artifact@v4
+        with:
+          name: unicolor-wasm
+          path: |
+            build/wasm/unicolor.wasm
+            build/wasm/unicolor.js
+            wasm/unicolor.js
+            wasm/unicolor.d.ts
+
   consume-cabi:
     name: Consume C artifact (${{ matrix.os }})
     needs: cabi

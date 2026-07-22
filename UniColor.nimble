@@ -93,10 +93,17 @@ task wasm, "Build the WASM module (unicolor.wasm + JS glue) via emscripten":
   # quotes inside a double-quoted `--passL:"..."` breaks nimscript's `sh -c`
   # quoting. A response file is whitespace-split, so each `-s FLAG=[...]` (no
   # spaces) is one token, and the quotes reach emcc verbatim.
+  #
+  # EXPORT_ES6: the factory `export default`s the module instead of the UMD
+  # `module.exports` branch. A UMD factory loaded as ESM (a consumer with
+  # `{"type":"module"}` above the tarball) skips that branch and exports
+  # nothing; EXPORT_ES6 makes it a real ES module, so the glue's
+  # `mod.default ?? mod` resolves in every consumer context.
   exec "mkdir -p build/wasm"
   writeFile("build/wasm/flags.txt",
     "-s WASM=1\n" &
     "-s MODULARIZE=1\n" &
+    "-s EXPORT_ES6=1\n" &
     "-s EXPORT_NAME=UniColorModule\n" &
     "-s EXPORTED_FUNCTIONS=['" & wasmExports & "']\n" &
     "-s EXPORTED_RUNTIME_METHODS=['" & wasmRt & "']\n" &

@@ -59,6 +59,46 @@ jobs:
           name: cabi-${{ matrix.os }}
           path: '*.tar.gz'
 
+  wasm:
+    name: WASM (Emscripten)
+    needs: guard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { persist-credentials: false }
+      - uses: jiro4989/setup-nim-action@v2
+        with:
+          nim-version: '2.2.10'
+      - run: nimble install -y
+      - uses: emscripten-core/setup-emsdk@v16
+        with:
+          version: 6.0.2
+      - run: nimble wasm
+      - name: Package
+        shell: bash
+        run: |
+          set -eu
+          dir="UniColor-${GITHUB_REF_NAME}-wasm"
+          mkdir -p "$dir"
+          # The emcc MODULARIZE+EXPORT_ES6 factory, renamed so the release
+          # glue's `./unicolor.wasm.js` candidate resolves; unicolor.wasm keeps
+          # its basename to match emcc's baked internal reference (no locateFile).
+          cp build/wasm/unicolor.wasm "$dir/unicolor.wasm"
+          cp build/wasm/unicolor.js  "$dir/unicolor.wasm.js"
+          cp wasm/unicolor.js        "$dir/unicolor.js"
+          cp wasm/unicolor.d.ts      "$dir/unicolor.d.ts"
+          # Self-contained ESM: the nearest package.json wins, so a consumer's
+          # own type field (commonjs or module) cannot force the wrong parse on
+          # the factory. EXPORT_ES6 makes both files real ES modules under it.
+          printf '{"type":"module"}\n' > "$dir/package.json"
+          cp LICENSE NOTICE "$dir/"
+          cp wasm/README.md "$dir/README.md"
+          tar czf "$dir.tar.gz" "$dir"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wasm
+          path: '*.tar.gz'
+
   wheels:
     name: Wheel (${{ matrix.os }})
     needs: guard
@@ -98,7 +138,7 @@ jobs:
 
   publish:
     name: Publish
-    needs: [cabi, wheels]
+    needs: [cabi, wheels, wasm]
     runs-on: ubuntu-latest
     permissions:
       contents: write
