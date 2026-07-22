@@ -329,4 +329,90 @@ proc uc_palette_intent(p: ptr Palette): cint {.raises: [].} =
   ## The intent as a UC_PAL_INTENT_* ordinal (0 for NULL).
   if p.isNil: 0 else: cint(ord(p[].intent))
 
+# --- import ABI -------------------------------------------------------
+
+proc uc_import_theme(input: cstring, name: cstring, strict: cint): ptr Theme {.
+    raises: [].} =
+  ## Import `input` as format `name` and return the reconstructed theme. `strict`
+  ## non-zero fatal-fails on the first recoverable error. Returns NULL on a NULL
+  ## input/name, an unknown importer, a kind mismatch (the format yields a
+  ## palette), or a parse failure. The caller owns the handle; free with
+  ## `uc_theme_free`.
+  if input.isNil or name.isNil:
+    return nil
+  let r = importTheme($input, $name, ImportOpts(strict: strict != 0))
+  if r.isErr:
+    nil
+  else:
+    let p = cast[ptr Theme](alloc0(sizeof(Theme)))
+    p[] = r.get
+    p
+
+proc uc_import_palette(input: cstring, name: cstring,
+    strict: cint): ptr Palette {.
+    raises: [].} =
+  ## Import `input` as format `name` and return the reconstructed palette. Returns
+  ## NULL on a NULL input/name, an unknown importer, a kind mismatch (the format
+  ## yields a theme), or a parse failure. Free with `uc_palette_free`.
+  if input.isNil or name.isNil:
+    return nil
+  let r = importPalette($input, $name, ImportOpts(strict: strict != 0))
+  if r.isErr:
+    nil
+  else:
+    let p = cast[ptr Palette](alloc0(sizeof(Palette)))
+    p[] = r.get
+    p
+
+proc uc_import_reported(input: cstring, name: cstring,
+    strict: cint): ptr ImportReport {.raises: [].} =
+  ## Import `input` as format `name` and return the full report (target +
+  ## warnings + metadata). The report handle owns its target; to obtain the theme
+  ## or palette use `uc_import_theme` / `uc_import_palette` — this handle exposes
+  ## only the diagnostics (format name, schema version, warnings). Returns NULL
+  ## on a NULL input/name or an unknown importer. Free with
+  ## `uc_import_report_free`.
+  if input.isNil or name.isNil:
+    return nil
+  let r = importReported($input, $name, ImportOpts(strict: strict != 0))
+  if r.isErr:
+    nil
+  else:
+    let p = cast[ptr ImportReport](alloc0(sizeof(ImportReport)))
+    p[] = r.get
+    p
+
+proc uc_import_report_free(r: ptr ImportReport) {.raises: [].} =
+  ## Release an import-report handle and its target/warnings storage. NULL is a
+  ## no-op.
+  if not r.isNil:
+    `=destroy`(r[])
+    dealloc(r)
+
+proc uc_import_format_name(r: ptr ImportReport, buf: ptr char,
+    size: csize_t): csize_t {.raises: [].} =
+  ## The format name the importer reconstructed. Measure+fill buffer; 0 on NULL.
+  if r.isNil: 0.csize_t else: writeBuf(r[].formatName, buf, size)
+
+proc uc_import_schema_version(r: ptr ImportReport, buf: ptr char,
+    size: csize_t): csize_t {.raises: [].} =
+  ## The schema version read from the source ("" if the format carries none).
+  ## Measure+fill buffer; 0 on NULL.
+  if r.isNil: 0.csize_t else: writeBuf(r[].schemaVersion, buf, size)
+
+proc uc_import_warning_count(r: ptr ImportReport): cint {.raises: [].} =
+  ## Number of recoverable warnings in the report (0 for NULL).
+  if r.isNil: 0 else: cint(r[].warnings.len)
+
+proc uc_import_warning(r: ptr ImportReport, i: cint, buf: ptr char,
+    size: csize_t): csize_t {.raises: [].} =
+  ## The message of warning `i`. Measure+fill buffer; 0 on a NULL handle or an
+  ## out-of-range index.
+  if r.isNil:
+    return 0.csize_t
+  let idx = int(i)
+  if idx < 0 or idx >= r[].warnings.len:
+    return 0.csize_t
+  writeBuf(r[].warnings[idx].message, buf, size)
+
 {.pop.}

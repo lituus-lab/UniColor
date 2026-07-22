@@ -200,6 +200,44 @@ int main(void) {
   uc_palette_free(pal);
   uc_palette_free(NULL);
 
+  /* --- import ABI ---------------------------------------------------- */
+
+  /* Round-trip: export a theme to JSON, import it back, resolve a role. */
+  uc_token iprims[] = {
+    { "background",   red,  NULL },
+    { "text.primary", blue, NULL }
+  };
+  uc_theme *src = uc_theme_make(iprims, 2, NULL, 0, NULL, 0);
+  char json[1024];
+  size_t jn = uc_theme_export(src, "json", 0, json, sizeof json);
+  if (jn == 0 || strstr(json, "\"background\"") == NULL) {
+    printf("FAIL export json: \"%s\"\n", json); failures++;
+  } else printf("ok   export json (len %zu)\n", jn);
+
+  uc_theme *imp = uc_import_theme(json, "json", 0);
+  if (imp == NULL) { printf("FAIL import_theme: NULL\n"); failures++; }
+  else {
+    check_color_ok("import resolve background", uc_theme_resolve(imp, "background"));
+    uc_theme_free(imp);
+  }
+  uc_theme_free(src);
+
+  /* Reported handle: format name + warning count, then free. */
+  uc_import_report *rep = uc_import_reported(json, "json", 0);
+  if (rep == NULL) { printf("FAIL import_reported: NULL\n"); failures++; }
+  else {
+    { char fn[32];
+      uc_import_format_name(rep, fn, sizeof fn);
+      check_str("import format_name", fn, "json"); }
+    check_int("import warning_count", uc_import_warning_count(rep), 0);
+    uc_import_report_free(rep);
+  }
+  uc_import_report_free(NULL); /* no-op. */
+
+  /* Failures: NULL input, unknown importer. */
+  check_ptr_null("import NULL input", uc_import_theme(NULL, "json", 0));
+  check_ptr_null("import unknown fmt", uc_import_theme(json, "nopefmt", 0));
+
   if (failures == 0) { printf("\nAll C ABI tests passed.\n"); return 0; }
   printf("\n%d C ABI test(s) FAILED.\n", failures);
   return 1;

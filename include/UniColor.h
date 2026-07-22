@@ -220,6 +220,48 @@ int uc_palette_tag(uc_palette *p);
 /* The intent as a UC_PAL_INTENT_* ordinal (0 for NULL). */
 int uc_palette_intent(uc_palette *p);
 
+/* --- import ABI ------------------------------------------------------- */
+
+/* Opaque import-report handle (target + warnings + metadata). The caller owns
+ * it; free with uc_import_report_free. */
+typedef struct uc_import_report uc_import_report;
+
+/* Import `input` as format `name` and return the reconstructed theme. `strict`
+ * non-zero fatal-fails on the first recoverable error. Returns NULL on a NULL
+ * input/name, an unknown importer, a kind mismatch, or a parse failure. The
+ * caller owns the handle; free with uc_theme_free. */
+uc_theme *uc_import_theme(const char *input, const char *name, int strict);
+
+/* Import `input` as format `name` and return the reconstructed palette. Returns
+ * NULL on a NULL input/name, an unknown importer, a kind mismatch, or a parse
+ * failure. Free with uc_palette_free. */
+uc_palette *uc_import_palette(const char *input, const char *name, int strict);
+
+/* Import `input` as format `name` and return the full report. The report owns
+ * its target; to obtain the theme/palette use uc_import_theme / uc_import_palette
+ * — this handle exposes only the diagnostics. Returns NULL on a NULL input/name
+ * or an unknown importer. Free with uc_import_report_free. */
+uc_import_report *uc_import_reported(const char *input, const char *name,
+    int strict);
+
+/* Release an import-report handle and its target/warnings storage. NULL is a
+ * no-op. */
+void uc_import_report_free(uc_import_report *r);
+
+/* The format name the importer reconstructed. Measure+fill buffer; 0 on NULL. */
+size_t uc_import_format_name(uc_import_report *r, char *buf, size_t size);
+
+/* The schema version read from the source ("" if the format carries none).
+ * Measure+fill buffer; 0 on NULL. */
+size_t uc_import_schema_version(uc_import_report *r, char *buf, size_t size);
+
+/* Number of recoverable warnings in the report (0 for NULL). */
+int uc_import_warning_count(uc_import_report *r);
+
+/* The message of warning `i`. Measure+fill buffer; 0 on a NULL handle or an
+ * out-of-range index. */
+size_t uc_import_warning(uc_import_report *r, int i, char *buf, size_t size);
+
 #ifdef __cplusplus
 }
 #endif
