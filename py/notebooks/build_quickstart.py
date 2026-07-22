@@ -29,24 +29,82 @@ pip install unicolor
 
 CI executes this notebook against the wheel the release actually publishes, so
 an output below that stops matching fails the build."""),
-    ("md", "## The API"),
     ("code", """import unicolor
 
 unicolor.version(), unicolor.__version__"""),
+    ("md", """## Colors
+
+A `Color` is 4 float32 components plus a `SpaceTag`. Build one from a CSS
+string or a space-specific factory; a bad build raises `ValueError` (the C
+sentinel has `tag == unicolor.TAG_UNKNOWN`)."""),
+    ("code", """red = unicolor.parse('#ff0000')
+red.tag, red.components, red.alpha, red.format_css()"""),
+    ("code", """unicolor.srgb(1.0, 0.0, 0.0).format_css()
+unicolor.oklch(0.65, 0.18, 250.0).format_css()"""),
+    ("code", """# format_css(legacy=True) emits sRGB hex; default is OKLCH.
+red.format_css(legacy=True)"""),
+    ("md", "## Conversion & gamut mapping"),
+    ("code", """# convert() changes the space; gamut_map() maps an out-of-gamut color
+# into a target space's realizable range.
+red.convert(unicolor.TAG_OKLCH).format_css()
+unicolor.oklch(0.7, 0.3, 200.0).gamut_map(unicolor.TAG_SRGB).format_css(legacy=True)"""),
+    ("md", """## Contrast & distance
+
+`contrast` defaults to the WCAG 2.2 ratio; named metrics like `apca` are
+supported. `distance` is a perceptual ΔE under a named metric."""),
+    ("code", """unicolor.contrast(unicolor.parse('#000000'), unicolor.parse('#ffffff'))
+unicolor.contrast(unicolor.parse('#000000'), unicolor.parse('#ffffff'), metric='apca')"""),
+    ("code", """unicolor.distance(unicolor.parse('#ff0000'), unicolor.parse('#00ff00'), 'deltaE_ok')"""),
+    ("md", """## Themes
+
+A `Theme` is a 3-layer token tree (primitives / semantics / components). Build
+it from `(name, color|None, alias|None)` tuples: primitives carry a color,
+semantics and components carry an alias."""),
+    ("code", """t = unicolor.theme(
+    [('surface', unicolor.srgb(1.0, 1.0, 1.0), None),
+     ('text', unicolor.srgb(0.0, 0.0, 0.0), None)],
+    [('text.primary', None, 'text')],
+)
+t.count, t.has_role('text.primary')"""),
+    ("code", """t.resolve('text.primary').format_css()
+print(t.export('css'))"""),
+    ("md", """## Palettes
+
+A `Palette` is an immutable color set. `color_at(i)` indexes the discrete
+structures; `sample(t)` reads an ordered ramp at `t in [0,1]`. Both raise
+`ValueError` when the structure does not support the operation or the index is
+out of range."""),
+    ("code", """p = unicolor.palette(
+    unicolor.PAL_TAG_ORDERED,
+    [unicolor.parse('#ff0000'), unicolor.parse('#00ff00'), unicolor.parse('#0055ff')],
+    unicolor.PAL_INTENT_SEQUENTIAL,
+)
+len(p), p.color_at(1).format_css(), p.sample(0.5).format_css()"""),
+    ("md", """## Import & validation
+
+`import_theme` reconstructs a theme from a serialized source (JSON, CSS, ...);
+`import_reported` returns the diagnostics without the target. `validate_theme`
+/ `validate_palette` run every registered rule and return a scored report."""),
+    ("code", """j = t.export('json')
+t2 = unicolor.import_theme(j, 'json')
+t2.count, t2.resolve('surface').tag"""),
+    ("code", """rep = unicolor.validate_theme(t2)
+rep.score, rep.worst, rep.rule_count"""),
+    ("code", """rep.rule(0)"""),
     ("md", """## The C ABI underneath
 
 The same entry points are reachable from anything that speaks C:
 
 ```c
 const char *uc_version(void);
-int uc_abi_major(void);
-int uc_abi_minor(void);
-int uc_abi_patch(void);
+uc_color uc_parse(const char *s);
+uc_color uc_convert(uc_color c, int target);
+double uc_contrast(uc_color fg, uc_color bg);
+uc_theme *uc_theme_make(uc_token *prim, size_t nprim, ...);
+uc_validation *uc_validate_theme(uc_theme *t);
 ```
 
-See `include/UniColor.h`, and the book for the full picture. The domain API
-(color spaces, conversion, contrast, interpolation, palettes, accessibility)
-lands across the following PRs; this quickstart grows with it."""),
+See `include/UniColor.h`, and the book for the full picture."""),
 ]
 
 
