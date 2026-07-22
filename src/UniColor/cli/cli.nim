@@ -6,6 +6,7 @@ import ../../UniColor
 import std/os
 import UniColor/cli/color
 import UniColor/cli/themes
+import UniColor/cli/palettes
 
 const Help = "unicolor " & UniColorVersion & " — perceptual color engine\n" &
   "usage: unicolor <command> [args]\n" &
@@ -27,7 +28,7 @@ proc run*(args: seq[string]): tuple[text: string, ok: bool] =
   of "parse", "convert", "gamut", "contrast", "distance":
     return runColor(args)
   of "theme": return runTheme(args[1 ..< args.len])
-  of "palette": return ("palette commands: colorat, sample, validate", false)
+  of "palette": return runPalette(args[1 ..< args.len])
   else: return ("unknown command: " & args[0] & "\n\n" & Help, false)
 
 when isMainModule:

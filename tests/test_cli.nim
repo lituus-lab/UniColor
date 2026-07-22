@@ -127,3 +127,31 @@ suite "cli theme — resolve / export / validate":
     check not r.ok
 
 removeFile(themePath)
+
+suite "cli palette — colorat / sample / validate":
+  test "colorat picks the nth color":
+    let r = run(@["palette", "colorat", "1", "#ff0000", "#00ff00"])
+    check r.ok
+    check "[srgb]" in r.text
+  test "colorat out of range exits 1":
+    let r = run(@["palette", "colorat", "5", "#ff0000", "#00ff00"])
+    check not r.ok
+  test "sample at t=0.5 between two colors":
+    let r = run(@["palette", "sample", "0.5", "#ff0000", "#00ff00"])
+    check r.ok
+    check "[oklch]" in r.text
+  test "sample out of range exits 1":
+    let r = run(@["palette", "sample", "2.0", "#ff0000", "#00ff00"])
+    check not r.ok
+  test "validate reports a score":
+    let r = run(@["palette", "validate", "#ff0000", "#00ff00", "#0055ff"])
+    check r.ok
+    check r.text.startsWith("score: ")
+    check "worst: " in r.text
+  test "bad color parse exits 1":
+    let r = run(@["palette", "validate", "notacolor"])
+    check not r.ok
+    check "could not parse" in r.text
+  test "unknown palette subcommand exits 1":
+    let r = run(@["palette", "bogus"])
+    check not r.ok
