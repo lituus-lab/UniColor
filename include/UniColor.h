@@ -262,6 +262,55 @@ int uc_import_warning_count(uc_import_report *r);
  * out-of-range index. */
 size_t uc_import_warning(uc_import_report *r, int i, char *buf, size_t size);
 
+/* --- validation ABI --------------------------------------------------- */
+
+/* Severity ordinals (Info = passed, Warning = soft, Error = hard, Fatal unused
+ * by the built-in rules). */
+#define UC_SEVERITY_INFO    0
+#define UC_SEVERITY_WARNING 1
+#define UC_SEVERITY_ERROR   2
+#define UC_SEVERITY_FATAL   3
+
+/* Opaque validation-report handle. The caller owns it; free with
+ * uc_validation_free. */
+typedef struct uc_validation uc_validation;
+
+/* Run every registered theme / palette rule and return the report. NULL on a
+ * NULL handle. Free with uc_validation_free. */
+uc_validation *uc_validate_theme(uc_theme *t);
+uc_validation *uc_validate_palette(uc_palette *p);
+
+/* Release a validation-report handle and its rule-result storage. NULL is a
+ * no-op. */
+void uc_validation_free(uc_validation *r);
+
+/* 0..100 score (0 for NULL). */
+int uc_validation_score(uc_validation *r);
+
+/* Worst severity as a UC_SEVERITY_* ordinal (0 for NULL). */
+int uc_validation_worst(uc_validation *r);
+
+/* Number of rule results (0 for NULL). */
+int uc_validation_rule_count(uc_validation *r);
+
+/* Rule `i`'s name. Measure+fill buffer; 0 on a NULL handle or out-of-range. */
+size_t uc_validation_rule_name(uc_validation *r, int i, char *buf, size_t size);
+
+/* Rule `i`'s severity as a UC_SEVERITY_* ordinal (0 on NULL / out-of-range). */
+int uc_validation_rule_severity(uc_validation *r, int i);
+
+/* Rule `i`'s measured metric (NaN when the rule has none). NaN on NULL /
+ * out-of-range. */
+double uc_validation_rule_metric(uc_validation *r, int i);
+
+/* Rule `i`'s pass boundary. NaN on NULL / out-of-range. */
+double uc_validation_rule_threshold(uc_validation *r, int i);
+
+/* Rule `i`'s human-readable message. Measure+fill buffer; 0 on a NULL handle
+ * or out-of-range. */
+size_t uc_validation_rule_message(uc_validation *r, int i, char *buf,
+    size_t size);
+
 #ifdef __cplusplus
 }
 #endif

@@ -238,6 +238,57 @@ int main(void) {
   check_ptr_null("import NULL input", uc_import_theme(NULL, "json", 0));
   check_ptr_null("import unknown fmt", uc_import_theme(json, "nopefmt", 0));
 
+  /* --- validation ABI ----------------------------------------------- */
+
+  /* Passing theme: black text on white surface meets WCAG AA. */
+  uc_token vgood[] = {
+    { "surface",      white, NULL },
+    { "text.primary", black, NULL }
+  };
+  uc_theme *vt = uc_theme_make(vgood, 2, NULL, 0, NULL, 0);
+  uc_validation *vr = uc_validate_theme(vt);
+  if (vr == NULL) { printf("FAIL validate_theme: NULL\n"); failures++; }
+  else {
+    check_int("validate score (pass)", uc_validation_score(vr), 100);
+    check_int("validate worst (pass)", uc_validation_worst(vr), UC_SEVERITY_INFO);
+    check_int("validate rule_count", uc_validation_rule_count(vr), 1);
+    { char rname[64];
+      uc_validation_rule_name(vr, 0, rname, sizeof rname);
+      check_str("validate rule name", rname, "contrast-text-primary"); }
+    check_int("validate rule severity (pass)",
+        uc_validation_rule_severity(vr, 0), UC_SEVERITY_INFO);
+    check_dbl_tol("validate rule threshold",
+        uc_validation_rule_threshold(vr, 0), 4.5, 1e-6);
+    { double m = uc_validation_rule_metric(vr, 0);
+      if (isnan(m) || m < 4.5) { printf("FAIL validate rule metric: %g\n", m); failures++; }
+      else printf("ok   validate rule metric = %g\n", m); }
+    { char msg[256];
+      size_t mn = uc_validation_rule_message(vr, 0, msg, sizeof msg);
+      if (mn == 0) { printf("FAIL validate rule message: empty\n"); failures++; }
+      else printf("ok   validate rule message (len %zu)\n", mn); }
+    /* Out-of-range rule index: severity 0, metric NaN. */
+    check_int("validate rule oob severity", uc_validation_rule_severity(vr, 9), 0);
+    check_dbl("validate rule oob metric", uc_validation_rule_metric(vr, 9), NAN);
+    uc_validation_free(vr);
+  }
+  uc_theme_free(vt);
+
+  /* Failing theme: white text on white surface fails AA (score 90, Error). */
+  uc_token vbad[] = {
+    { "surface",      white, NULL },
+    { "text.primary", white, NULL }
+  };
+  uc_theme *vtf = uc_theme_make(vbad, 2, NULL, 0, NULL, 0);
+  uc_validation *vrf = uc_validate_theme(vtf);
+  check_int("validate score (fail)", uc_validation_score(vrf), 90);
+  check_int("validate worst (fail)", uc_validation_worst(vrf), UC_SEVERITY_ERROR);
+  check_int("validate rule severity (fail)",
+      uc_validation_rule_severity(vrf, 0), UC_SEVERITY_ERROR);
+  uc_validation_free(vrf);
+  uc_theme_free(vtf);
+
+  uc_validation_free(NULL); /* no-op. */
+
   if (failures == 0) { printf("\nAll C ABI tests passed.\n"); return 0; }
   printf("\n%d C ABI test(s) FAILED.\n", failures);
   return 1;

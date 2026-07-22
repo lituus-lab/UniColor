@@ -415,4 +415,97 @@ proc uc_import_warning(r: ptr ImportReport, i: cint, buf: ptr char,
     return 0.csize_t
   writeBuf(r[].warnings[idx].message, buf, size)
 
+# --- validation ABI --------------------------------------------------
+
+proc uc_validate_theme(t: ptr Theme): ptr ValidationReport {.raises: [].} =
+  ## Run every registered theme rule and return the report. NULL on a NULL
+  ## handle. The caller owns the handle; free with `uc_validation_free`.
+  if t.isNil:
+    nil
+  else:
+    let p = cast[ptr ValidationReport](alloc0(sizeof(ValidationReport)))
+    p[] = validateTheme(t[])
+    p
+
+proc uc_validate_palette(p: ptr Palette): ptr ValidationReport {.raises: [].} =
+  ## Run every registered palette rule and return the report. NULL on a NULL
+  ## handle. Free with `uc_validation_free`.
+  if p.isNil:
+    nil
+  else:
+    let q = cast[ptr ValidationReport](alloc0(sizeof(ValidationReport)))
+    q[] = validatePalette(p[])
+    q
+
+proc uc_validation_free(r: ptr ValidationReport) {.raises: [].} =
+  ## Release a validation-report handle and its rule-result storage. NULL is a
+  ## no-op.
+  if not r.isNil:
+    `=destroy`(r[])
+    dealloc(r)
+
+proc uc_validation_score(r: ptr ValidationReport): cint {.raises: [].} =
+  ## 0..100 score (0 for NULL).
+  if r.isNil: 0 else: cint(r[].score)
+
+proc uc_validation_worst(r: ptr ValidationReport): cint {.raises: [].} =
+  ## Worst severity as a UC_SEVERITY_* ordinal (0 for NULL).
+  if r.isNil: 0 else: cint(ord(r[].worst))
+
+proc uc_validation_rule_count(r: ptr ValidationReport): cint {.raises: [].} =
+  ## Number of rule results (0 for NULL).
+  if r.isNil: 0 else: cint(r[].results.len)
+
+proc uc_validation_rule_name(r: ptr ValidationReport, i: cint, buf: ptr char,
+    size: csize_t): csize_t {.raises: [].} =
+  ## Rule `i`'s name. Measure+fill buffer; 0 on a NULL handle or out-of-range.
+  if r.isNil:
+    return 0.csize_t
+  let idx = int(i)
+  if idx < 0 or idx >= r[].results.len:
+    return 0.csize_t
+  writeBuf(r[].results[idx].name, buf, size)
+
+proc uc_validation_rule_severity(r: ptr ValidationReport, i: cint): cint {.
+    raises: [].} =
+  ## Rule `i`'s severity as a UC_SEVERITY_* ordinal (0 on NULL / out-of-range).
+  if r.isNil:
+    return 0
+  let idx = int(i)
+  if idx < 0 or idx >= r[].results.len:
+    return 0
+  cint(ord(r[].results[idx].severity))
+
+proc uc_validation_rule_metric(r: ptr ValidationReport, i: cint): cdouble {.
+    raises: [].} =
+  ## Rule `i`'s measured metric (NaN when the rule has none). NaN on NULL /
+  ## out-of-range.
+  if r.isNil:
+    return NaN
+  let idx = int(i)
+  if idx < 0 or idx >= r[].results.len:
+    return NaN
+  cdouble(r[].results[idx].metric)
+
+proc uc_validation_rule_threshold(r: ptr ValidationReport, i: cint): cdouble {.
+    raises: [].} =
+  ## Rule `i`'s pass boundary. NaN on NULL / out-of-range.
+  if r.isNil:
+    return NaN
+  let idx = int(i)
+  if idx < 0 or idx >= r[].results.len:
+    return NaN
+  cdouble(r[].results[idx].threshold)
+
+proc uc_validation_rule_message(r: ptr ValidationReport, i: cint, buf: ptr char,
+    size: csize_t): csize_t {.raises: [].} =
+  ## Rule `i`'s human-readable message. Measure+fill buffer; 0 on a NULL handle
+  ## or out-of-range.
+  if r.isNil:
+    return 0.csize_t
+  let idx = int(i)
+  if idx < 0 or idx >= r[].results.len:
+    return 0.csize_t
+  writeBuf(r[].results[idx].message, buf, size)
+
 {.pop.}
