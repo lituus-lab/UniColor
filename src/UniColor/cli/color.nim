@@ -5,6 +5,7 @@
 ## is the base of the cli group.
 import ../../UniColor
 import std/options
+import std/strutils
 
 proc parseColorArg*(s: string): Option[Color] =
   ## Parse a CSS Color 4 string into a Color, or none on a malformed input.
@@ -19,6 +20,34 @@ proc spaceTagByName*(name: string): Option[SpaceTag] =
 proc formatLine*(c: Color, legacy: bool): string =
   ## A color as "css-form  [tag-name]" — the css form is OKLCH unless legacy.
   formatColorCss(c, legacy) & "  [" & spaceName(c.spaceTag) & "]"
+
+proc parseFlags*(args: seq[string]): tuple[fmt: string, legacy: bool,
+    pos: seq[string]] =
+  ## Pull `--format F` and `--legacy` out of `args`; `pos` holds the positionals
+  ## left in order. Unknown flags stay in `pos` (the caller validates them).
+  var fmt = ""
+  var legacy = false
+  var pos: seq[string] = @[]
+  var i = 0
+  while i < args.len:
+    if args[i] == "--format" and i + 1 < args.len:
+      fmt = args[i + 1]; i += 2
+    elif args[i] == "--legacy":
+      legacy = true; i += 1
+    else:
+      pos.add(args[i]); i += 1
+  (fmt, legacy, pos)
+
+proc formatReport*(rep: ValidationReport): string =
+  ## A validation report as "score: N\nworst: <sev>\n  <rule> — <sev> ...".
+  var lines: seq[string] = @[]
+  lines.add("score: " & $rep.score)
+  lines.add("worst: " & $rep.worst)
+  for rr in rep.results:
+    lines.add("  " & rr.name & " — " & $rr.severity & " (metric " &
+      $rr.metric &
+      ", threshold " & $rr.threshold & "): " & rr.message)
+  lines.join("\n")
 
 proc runColor*(args: seq[string]): tuple[text: string, ok: bool] =
   ## Dispatch the color-core subcommands. `args[0]` is the subcommand.

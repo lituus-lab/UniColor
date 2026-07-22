@@ -2,6 +2,7 @@
 # Copyright 2026 lituus-lab
 import std/unittest
 import std/strutils
+import std/os
 import UniColor
 import UniColor/cli/cli
 
@@ -79,3 +80,50 @@ suite "cli color — contrast / distance":
   test "distance with a bad metric exits 1":
     let r = run(@["distance", "#ff0000", "#00ff00", "bogus"])
     check not r.ok
+
+# A theme file the engine itself exported — guaranteed to round-trip back in.
+let themePath = getTempDir() / "unicolor_cli_theme.json"
+block:
+  let t = theme([
+    ThemeToken(name: "surface", color: color(tagSrgb, 1.0'f32, 1.0'f32,
+        1.0'f32).get),
+    ThemeToken(name: "text.primary",
+      color: color(tagSrgb, 0.0'f32, 0.0'f32, 0.0'f32).get)
+  ], [], []).get
+  writeFile(themePath, exportTheme(t, "json").get)
+
+suite "cli theme — resolve / export / validate":
+  test "resolve a primitive role":
+    let r = run(@["theme", "resolve", themePath, "surface"])
+    check r.ok
+    check "[oklch]" in r.text
+  test "resolve with an explicit --format":
+    let r = run(@["theme", "resolve", themePath, "surface", "--format", "json"])
+    check r.ok
+    check "[oklch]" in r.text
+  test "resolve a missing role exits 1":
+    let r = run(@["theme", "resolve", themePath, "nope"])
+    check not r.ok
+  test "export to css emits a --surface var":
+    let r = run(@["theme", "export", themePath, "css"])
+    check r.ok
+    check "--surface" in r.text
+  test "export --legacy emits hex":
+    let r = run(@["theme", "export", themePath, "css", "--legacy"])
+    check r.ok
+    check "#" in r.text
+  test "validate reports a passing score":
+    let r = run(@["theme", "validate", themePath])
+    check r.ok
+    check "contrast-text-primary" in r.text
+    check r.text.startsWith("score: ")
+    check "worst: " in r.text
+  test "missing file exits 1":
+    let r = run(@["theme", "resolve", "/nonexistent/unicolor.json", "surface"])
+    check not r.ok
+    check "file not found" in r.text
+  test "unknown theme subcommand exits 1":
+    let r = run(@["theme", "bogus"])
+    check not r.ok
+
+removeFile(themePath)
