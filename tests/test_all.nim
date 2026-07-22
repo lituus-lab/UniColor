@@ -24,3 +24,4 @@ import test_image
 import test_validation
 import test_import
 import test_export
+import test_cli
