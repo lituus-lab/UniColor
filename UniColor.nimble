@@ -107,6 +107,10 @@ task wasm, "Build the WASM module (unicolor.wasm + JS glue) via emscripten":
     " --passL:@build/wasm/flags.txt" &
     " -o:" & wasmOut & " src/UniColor/wasm/wasm.nim"
 
+task wasmTest, "Build the WASM module and run the node test suite":
+  exec "nimble wasm"
+  exec "node tests/wasm/test_unicolor.js"
+
 # Nim takes `-o:` literally and appends no platform extension.
 const
   sharedLib =

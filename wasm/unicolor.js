@@ -347,7 +347,10 @@ function makeApi(M) {
     }
 
     colorAt(i) {
-      if (!Number.isInteger(i) || i < 0) {
+      // The C sentinel cannot tell out-of-range from a wrong structure, so pre-
+      // check the index against `length` for a clean RangeError; a sentinel on
+      // a discrete palette is then a wrong-structure Error.
+      if (!Number.isInteger(i) || i < 0 || i >= this.length) {
         throw new RangeError("unicolor: color_at index out of range");
       }
       const out = M._malloc(COLOR_SIZE);
@@ -355,7 +358,7 @@ function makeApi(M) {
       const c = readColor(out);
       M._free(out);
       if (c) return c;
-      throw new Error("unicolor: color_at out of range or wrong structure");
+      throw new Error("unicolor: color_at wrong structure");
     }
 
     sample(t) {
