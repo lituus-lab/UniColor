@@ -243,15 +243,32 @@ proc tomlKeyValue(line: string): (string, string) {.raises: [].} =
     val = val[1 ..< ^1] # quoted value -> unquote.
   (key, val)
 
+# Extract the schemaVersion from a TOML source (the top-level
+# `schemaVersion = "..."` line). Returns "" if absent (the gate then rejects it
+# as malformed). Read BEFORE `migrateData` so the gate runs on the source
+# version, then the layer pass reads the MIGRATED string (a future migration
+# may rewrite the document structure).
+proc tomlSchemaVersion(input: string): string {.raises: [].} =
+  for line in input.splitLines():
+    let s = line.strip()
+    if s.startsWith("schemaVersion"):
+      let (k, v) = tomlKeyValue(s)
+      if k == "schemaVersion":
+        return v
+  ""
+
 proc tomlParse(input: string, opts: ImportOpts): Result[ImportReport,
     ColorError] {.raises: [].} =
-  # schemaVersion is the first `schemaVersion = "..."` line.
-  var schemaVersion = ""
+  let schemaVersion = tomlSchemaVersion(input)
+  let mR = migrateData(schemaVersion, input) # gate + migration pipeline.
+  if mR.isErr:
+    return err[ImportReport, ColorError](mR.error)
+  let src = mR.get # the migrated string — layer extraction reads this, not raw.
   var prims: FlatLayer = @[]
   var sems: FlatLayer = @[]
   var comps: FlatLayer = @[]
   var section = 0 # 0 none, 1 prims, 2 sems, 3 comps.
-  for line in input.splitLines():
+  for line in src.splitLines():
     let s = line.strip()
     if s.len == 0 or s.startsWith('#'):
       continue
@@ -265,10 +282,7 @@ proc tomlParse(input: string, opts: ImportOpts): Result[ImportReport,
       section = 3
       continue
     if s.startsWith("schemaVersion"):
-      let (k, v) = tomlKeyValue(s)
-      if k == "schemaVersion":
-        schemaVersion = v
-      continue
+      continue # already gated; skip on the layer pass.
     let (key, val) = tomlKeyValue(s)
     if key.len == 0:
       continue
@@ -277,11 +291,6 @@ proc tomlParse(input: string, opts: ImportOpts): Result[ImportReport,
     of 2: sems.add((key, val))
     of 3: comps.add((key, val))
     else: discard # top-level key we don't carry (e.g. name) — ignore.
-  let mR = migrateData(schemaVersion, input)
-  if mR.isErr:
-    return err[ImportReport, ColorError](mR.error)
-  # The gate ran via migrateData; at v0 the migration is identity, so the layers
-  # extracted above are already the migrated view. Assemble the report.
   var coll: PartialCollector
   assemble("toml", schemaVersion, prims, sems, comps, opts, coll)
 
@@ -299,14 +308,31 @@ proc yamlKeyValue(line: string): (string, string) {.raises: [].} =
     val = val[1 ..< ^1]
   (key, val)
 
+# Extract the schemaVersion from a YAML source (the top-level
+# `schemaVersion: <ver>` entry). Returns "" if absent. Read BEFORE `migrateData`
+# so the gate runs on the source version, then the layer pass reads the MIGRATED
+# string (mirrors jsonParse / tomlParse).
+proc yamlSchemaVersion(input: string): string {.raises: [].} =
+  for line in input.splitLines():
+    if line.strip().len == 0 or line.strip().startsWith('#'):
+      continue
+    let (key, val) = yamlKeyValue(line.strip())
+    if key == "schemaVersion":
+      return val
+  ""
+
 proc yamlParse(input: string, opts: ImportOpts): Result[ImportReport,
     ColorError] {.raises: [].} =
-  var schemaVersion = ""
+  let schemaVersion = yamlSchemaVersion(input)
+  let mR = migrateData(schemaVersion, input) # gate + migration pipeline.
+  if mR.isErr:
+    return err[ImportReport, ColorError](mR.error)
+  let src = mR.get # the migrated string — layer extraction reads this, not raw.
   var prims: FlatLayer = @[]
   var sems: FlatLayer = @[]
   var comps: FlatLayer = @[]
   var section = 0
-  for line in input.splitLines():
+  for line in src.splitLines():
     if line.strip().len == 0 or line.strip().startsWith('#'):
       continue
     # A section header is a non-indented line ending with `:` (e.g.
@@ -320,8 +346,7 @@ proc yamlParse(input: string, opts: ImportOpts): Result[ImportReport,
       continue
     let (key, val) = yamlKeyValue(line.strip())
     if key == "schemaVersion":
-      schemaVersion = val
-      continue
+      continue # already gated; skip on the layer pass.
     if key.len == 0:
       continue
     case section
@@ -329,9 +354,6 @@ proc yamlParse(input: string, opts: ImportOpts): Result[ImportReport,
     of 2: sems.add((key, val))
     of 3: comps.add((key, val))
     else: discard
-  let mR = migrateData(schemaVersion, input)
-  if mR.isErr:
-    return err[ImportReport, ColorError](mR.error)
   var coll: PartialCollector
   assemble("yaml", schemaVersion, prims, sems, comps, opts, coll)
 

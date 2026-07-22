@@ -57,7 +57,8 @@ proc readSchemaVersion(input: string): string {.raises: [].} =
     return ""
   result = ""
   var i = idx + "schema: ".len
-  while i < input.len and input[i] in {'a'..'z', 'A'..'Z', '0'..'9', '.', '-'}:
+  while i < input.len and input[i] in {'a'..'z', 'A'..'Z', '0'..'9', '.', '-',
+      '+'}:
     result.add(input[i])
     inc i
 

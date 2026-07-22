@@ -71,6 +71,17 @@ suite "schema — migration gate + engine":
       ok[string, ColorError](d))) # empty from.
     check not registerMigration(Migration(fromVersion: "bad", toVersion: "x",
         apply: nil)) # nil apply.
+  test "applyMigrations cycle -> ImportFailed (bound guard)":
+    # A registered 'toVersion' that revisits a prior version cycles 20 <-> 21
+    # forever; target "30" is unreachable. The bound guard (registry size + 1)
+    # catches it instead of looping.
+    discard registerMigration(Migration(fromVersion: "20", toVersion: "21",
+        apply: proc(d: string): Result[string, ColorError] {.raises: [].} =
+      ok[string, ColorError](d & "+21")))
+    discard registerMigration(Migration(fromVersion: "21", toVersion: "20",
+        apply: proc(d: string): Result[string, ColorError] {.raises: [].} =
+      ok[string, ColorError](d & "+20")))
+    check applyMigrations("20", "30", "d").error.kind == ImportFailed
   test "sealMigrations blocks further registration":
     sealMigrations()
     check not registerMigration(Migration(fromVersion: "100",
@@ -226,6 +237,16 @@ suite "round-trip — export -> import -> re-export is byte-identical (sRGB hex)
     rt("kitty")
     rt("windowsterminal")
     rt("foot")
+  test "alacritty: cursor.text does not override primary.foreground":
+    # The export emits cursor.text as a copy of fg for round-trip fidelity, but
+    # a third-party config may diverge. tp.fg must stay sourced only from
+    # primary.foreground. cursor.cursor is omitted here so the aux cursor->text
+    # .primary map does not shadow the foreground assertion.
+    let src = "colors:\n  primary:\n    background: '#000000'\n" &
+        "    foreground: '#aaaaaa'\n  cursor:\n    text: '#bbbbbb'\n"
+    let t = importTheme(src, "alacritty").get
+    check t.prims.hasKey("text.primary")
+    check t.prims["text.primary"] == parseColor("#aaaaaa").get
   test "ide (lossless slot subset): vscode / helix":
     rt("vscode")
     rt("helix")

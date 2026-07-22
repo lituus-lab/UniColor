@@ -211,6 +211,18 @@ suite "format leaves — smoke (ide / terminals)":
     let rep = exportThemeReported(termTheme, "windowsterminal").get
     check "\"name\": \"UniColor\"" in rep.output
     check "\"brightWhite\"" in rep.output
+  test "windowsterminal: no trailing comma when ANSI slots empty":
+    # A theme with only background + text.primary fills no ANSI slot, so the
+    # ANSI entry block is empty. The render must still emit valid JSON — no
+    # trailing comma before the closing brace (regression for the
+    # windowsterminalRender fix).
+    let mini = theme([
+      ThemeToken(name: "background", color: red),
+      ThemeToken(name: "text.primary", color: blue)
+    ], [], []).get
+    let rep = exportThemeReported(mini, "windowsterminal").get
+    check rep.output.strip().endsWith("}")
+    check ",\n}" notin rep.output
   test "foot: ini [colors], 6-hex no '#'":
     let rep = exportThemeReported(termTheme, "foot").get
     check "[colors]" in rep.output

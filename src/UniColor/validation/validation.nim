@@ -93,9 +93,11 @@ var
 
 proc registerThemeRule*(r: ThemeRule): bool {.raises: [].} =
   ## Register a theme rule. Idempotent (no overwrite); `false` if the name
-  ## exists or the registry is sealed. Insertion order is recorded so
-  ## `validateTheme` walks rules deterministically.
-  if themeRulesSealed or r.name.len == 0 or themeRules.hasKey(r.name):
+  ## exists, the registry is sealed, or `check` is nil (a nil proc would crash
+  ## `validateTheme`). Insertion order is recorded so `validateTheme` walks
+  ## rules deterministically.
+  if themeRulesSealed or r.name.len == 0 or r.check.isNil or
+      themeRules.hasKey(r.name):
     return false
   themeRules[r.name] = r
   themeRuleNames.add(r.name)
@@ -103,8 +105,10 @@ proc registerThemeRule*(r: ThemeRule): bool {.raises: [].} =
 
 proc registerPaletteRule*(r: PaletteRule): bool {.raises: [].} =
   ## Register a palette rule. Idempotent (no overwrite); `false` if the name
-  ## exists or the registry is sealed.
-  if paletteRulesSealed or r.name.len == 0 or paletteRules.hasKey(r.name):
+  ## exists, the registry is sealed, or `check` is nil (a nil proc would crash
+  ## `validatePalette`).
+  if paletteRulesSealed or r.name.len == 0 or r.check.isNil or
+      paletteRules.hasKey(r.name):
     return false
   paletteRules[r.name] = r
   paletteRuleNames.add(r.name)

@@ -139,6 +139,13 @@ suite "registry (idempotent, insertion-stable, sealable)":
           threshold: 0.0, message: ""))
     check not registerThemeRule(bad)
 
+  test "nil check is rejected (would crash validate*)":
+    check not registerThemeRule(ThemeRule(name: "uc-nil-theme", check: nil))
+    check not registerPaletteRule(PaletteRule(name: "uc-nil-palette",
+        check: nil))
+    check themeRuleCount() == baseThemeRules
+    check paletteRuleCount() == basePaletteRules
+
   test "new rule registered, insertion order preserved":
     let custom = ThemeRule(name: "custom-theme",
         check: proc(t: Theme): RuleResult =

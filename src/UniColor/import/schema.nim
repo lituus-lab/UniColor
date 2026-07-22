@@ -80,13 +80,25 @@ proc applyMigrations*(fromVersion, targetVersion, data: string): Result[
   ## the chain is identity when `fromVersion == targetVersion` (the common
   ## case at the current frontier). `err ImportFailed` if a step is MISSING (a
   ## gap in the chain — the reader cannot migrate an in-range version it has
-  ## no migration for) or if a step's `apply` fails (the step's error
-  ## propagates). This is the engine WITHOUT the gate — `migrateData` gates
-  ## first. Unit-testable independent of the frontier constants (a synthetic
-  ## chain "0"->"1"->"2").
+  ## no migration for), if a step's `apply` fails (the step's error propagates),
+  ## or if the chain CYCLES (a registered step `toVersion` revisits a prior
+  ## version — e.g. "5"->"6" and "6"->"5" both registered). The cycle guard
+  ## bounds the walk at the registry size: a linear chain consumes each
+  ## migration at most once, so more steps than registered migrations means a
+  ## revisit. This is the engine WITHOUT the gate — `migrateData` gates first.
+  ## Unit-testable independent of the frontier constants (a synthetic chain
+  ## "0"->"1"->"2").
   var cur = fromVersion
   var outData = data
+  var steps = 0
+  let bound = migrationsByFrom.len + 1 # +1: a from==target walk is 0 steps.
   while cur != targetVersion:
+    if steps > bound:
+      return err[string, ColorError](colorError(ImportFailed,
+          "applyMigrations: cycle detected — exceeded " & $bound &
+          " steps walking '" & fromVersion & "' toward '" & targetVersion &
+          "' (a registered 'toVersion' revisits a prior version)",
+          "applyMigrations"))
     let m = migrationsByFrom.getOrDefault(cur)
     if m.fromVersion.len == 0: # absent — getOrDefault zero-inits Migration.
       return err[string, ColorError](colorError(ImportFailed,
@@ -97,6 +109,7 @@ proc applyMigrations*(fromVersion, targetVersion, data: string): Result[
       return err[string, ColorError](r.error)
     outData = r.get
     cur = m.toVersion
+    inc steps
   ok[string, ColorError](outData)
 
 proc migrateData*(v, data: string): Result[string, ColorError] {.raises: [].} =

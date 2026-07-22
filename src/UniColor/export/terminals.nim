@@ -268,19 +268,23 @@ const wtBrightKeys = ["brightBlack", "brightRed", "brightGreen", "brightYellow",
 proc windowsterminalRender(theme: Theme, opts: ExportOpts): Result[ExportReport,
     ColorError] {.raises: [].} =
   let tp = resolveTermPalette(theme)
-  var lines: seq[string]
-  lines.add("{")
-  lines.add("  \"//\": \"" & genHeader("windowsterminal", SerializeOpts(
-      target: tagSrgb, legacySrgb: true)) & "\",")
-  lines.add("  \"name\": \"UniColor\",")
-  if tp.bg.hasHex: lines.add("  \"background\": \"" & withHash(tp.bg) & "\",")
-  if tp.fg.hasHex: lines.add("  \"foreground\": \"" & withHash(tp.fg) & "\",")
-  if tp.cursor.hasHex:
-    lines.add("  \"cursorColor\": \"" & withHash(tp.cursor) & "\",")
-  if tp.selection.hasHex:
-    lines.add("  \"selectionBackground\": \"" & withHash(tp.selection) & "\",")
-  # 16 named ANSI keys (normal then bright); last entry has no trailing comma.
+  # Collect every emitted property into one list, then join with ",\n" so the
+  # LAST property never carries a trailing comma (valid JSON). The header, name,
+  # aux (bg/fg/cursor/selection), and 16 ANSI keys preserve their conditional
+  # inclusion and fixed order; a theme with no ANSI colors still emits valid
+  # JSON (the prior fixed-line trailing commas dangled when entries was empty).
   var entries: seq[string]
+  entries.add("  \"//\": \"" & genHeader("windowsterminal", SerializeOpts(
+      target: tagSrgb, legacySrgb: true)) & "\"")
+  entries.add("  \"name\": \"UniColor\"")
+  if tp.bg.hasHex:
+    entries.add("  \"background\": \"" & withHash(tp.bg) & "\"")
+  if tp.fg.hasHex:
+    entries.add("  \"foreground\": \"" & withHash(tp.fg) & "\"")
+  if tp.cursor.hasHex:
+    entries.add("  \"cursorColor\": \"" & withHash(tp.cursor) & "\"")
+  if tp.selection.hasHex:
+    entries.add("  \"selectionBackground\": \"" & withHash(tp.selection) & "\"")
   for i in 0 .. 7:
     if tp.ansi[i].hasHex:
       entries.add("  \"" & wtNormalKeys[i] & "\": \"" & withHash(tp.ansi[i]) &
@@ -289,11 +293,8 @@ proc windowsterminalRender(theme: Theme, opts: ExportOpts): Result[ExportReport,
     if tp.ansi[i].hasHex:
       entries.add("  \"" & wtBrightKeys[i - 8] & "\": \"" & withHash(tp.ansi[
           i]) & "\"")
-  if entries.len > 0:
-    lines.add(entries.join(",\n")) # comma-separated, last entry no trailing comma.
-  lines.add("}")
-  report(lines.join("\n"), termInfoLostWarning("windowsterminal",
-      lostRoles(theme, fullTermProjected)))
+  report("{\n" & entries.join(",\n") & "\n}", termInfoLostWarning(
+      "windowsterminal", lostRoles(theme, fullTermProjected)))
 
 # --- Foot — ini [colors]. Foot uses 6-hex with NO `#` -------------------
 proc footRender(theme: Theme, opts: ExportOpts): Result[ExportReport,

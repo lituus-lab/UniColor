@@ -239,10 +239,13 @@ proc alacrittyParse(input: string, opts: ImportOpts): Result[ImportReport,
       elif key == "foreground": tp.fg = val
     of "cursor":
       if key == "cursor": tp.cursor = val
-      elif key == "text": tp.fg = val # cursor text = fg.
+      # `cursor.text` (the char under the cursor) is NOT the global foreground
+      # — the export emits it as a copy of fg for round-trip fidelity, but a
+      # third-party config may diverge; tp.fg stays sourced only from
+      # `primary.foreground` so a divergent cursor text can't override it.
     of "selection":
       if key == "background": tp.selection = val
-      elif key == "text": tp.fg = val # selection text = fg.
+      # `selection.text` likewise is not the global foreground (see "cursor").
     of "normal":
       let idx = ansiNameIdx(key)
       if idx >= 0: tp.ansi[idx] = val
