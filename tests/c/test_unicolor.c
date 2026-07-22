@@ -144,7 +144,7 @@ int main(void) {
     { "text.primary", blue, NULL }
   };
   uc_token sems[] = {
-    { "text.muted", { 0, 0, 0, 0, 0 }, "text.primary" }
+    { "text.muted", { { 0.0f, 0.0f, 0.0f, 0.0f }, 0 }, "text.primary" }
   };
   uc_theme *th = uc_theme_make(prims, 2, sems, 1, NULL, 0);
   if (th == NULL) { printf("FAIL theme_make: NULL\n"); failures++; }
@@ -202,39 +202,48 @@ int main(void) {
 
   /* --- import ABI ---------------------------------------------------- */
 
-  /* Round-trip: export a theme to JSON, import it back, resolve a role. */
+  /* Round-trip: export a theme to JSON, import it back, resolve a role. Guard
+   * src (theme_make can fail) and only import a payload that export produced —
+   * json is zero-init so a skipped/failed export never reads uninit. */
   uc_token iprims[] = {
     { "background",   red,  NULL },
     { "text.primary", blue, NULL }
   };
   uc_theme *src = uc_theme_make(iprims, 2, NULL, 0, NULL, 0);
-  char json[1024];
-  size_t jn = uc_theme_export(src, "json", 0, json, sizeof json);
-  if (jn == 0 || strstr(json, "\"background\"") == NULL) {
-    printf("FAIL export json: \"%s\"\n", json); failures++;
-  } else printf("ok   export json (len %zu)\n", jn);
+  char json[1024] = {0};
+  if (src == NULL) {
+    printf("FAIL import src theme_make: NULL\n"); failures++;
+  } else {
+    size_t jn = uc_theme_export(src, "json", 0, json, sizeof json);
+    if (jn == 0 || strstr(json, "\"background\"") == NULL) {
+      printf("FAIL export json: \"%s\"\n", json); failures++;
+    } else {
+      printf("ok   export json (len %zu)\n", jn);
 
-  uc_theme *imp = uc_import_theme(json, "json", 0);
-  if (imp == NULL) { printf("FAIL import_theme: NULL\n"); failures++; }
-  else {
-    check_color_ok("import resolve background", uc_theme_resolve(imp, "background"));
-    uc_theme_free(imp);
-  }
-  uc_theme_free(src);
+      uc_theme *imp = uc_import_theme(json, "json", 0);
+      if (imp == NULL) { printf("FAIL import_theme: NULL\n"); failures++; }
+      else {
+        check_color_ok("import resolve background", uc_theme_resolve(imp, "background"));
+        uc_theme_free(imp);
+      }
 
-  /* Reported handle: format name + warning count, then free. */
-  uc_import_report *rep = uc_import_reported(json, "json", 0);
-  if (rep == NULL) { printf("FAIL import_reported: NULL\n"); failures++; }
-  else {
-    { char fn[32];
-      uc_import_format_name(rep, fn, sizeof fn);
-      check_str("import format_name", fn, "json"); }
-    check_int("import warning_count", uc_import_warning_count(rep), 0);
-    uc_import_report_free(rep);
+      /* Reported handle: format name + warning count, then free. */
+      uc_import_report *rep = uc_import_reported(json, "json", 0);
+      if (rep == NULL) { printf("FAIL import_reported: NULL\n"); failures++; }
+      else {
+        { char fn[32];
+          uc_import_format_name(rep, fn, sizeof fn);
+          check_str("import format_name", fn, "json"); }
+        check_int("import warning_count", uc_import_warning_count(rep), 0);
+        uc_import_report_free(rep);
+      }
+    }
+    uc_theme_free(src);
   }
   uc_import_report_free(NULL); /* no-op. */
 
-  /* Failures: NULL input, unknown importer. */
+  /* Failures: NULL input, unknown importer (json is a valid empty string if
+   * export was skipped, so these read no uninit memory). */
   check_ptr_null("import NULL input", uc_import_theme(NULL, "json", 0));
   check_ptr_null("import unknown fmt", uc_import_theme(json, "nopefmt", 0));
 
@@ -246,32 +255,35 @@ int main(void) {
     { "text.primary", black, NULL }
   };
   uc_theme *vt = uc_theme_make(vgood, 2, NULL, 0, NULL, 0);
-  uc_validation *vr = uc_validate_theme(vt);
-  if (vr == NULL) { printf("FAIL validate_theme: NULL\n"); failures++; }
+  if (vt == NULL) { printf("FAIL validate pass theme_make: NULL\n"); failures++; }
   else {
-    check_int("validate score (pass)", uc_validation_score(vr), 100);
-    check_int("validate worst (pass)", uc_validation_worst(vr), UC_SEVERITY_INFO);
-    check_int("validate rule_count", uc_validation_rule_count(vr), 1);
-    { char rname[64];
-      uc_validation_rule_name(vr, 0, rname, sizeof rname);
-      check_str("validate rule name", rname, "contrast-text-primary"); }
-    check_int("validate rule severity (pass)",
-        uc_validation_rule_severity(vr, 0), UC_SEVERITY_INFO);
-    check_dbl_tol("validate rule threshold",
-        uc_validation_rule_threshold(vr, 0), 4.5, 1e-6);
-    { double m = uc_validation_rule_metric(vr, 0);
-      if (isnan(m) || m < 4.5) { printf("FAIL validate rule metric: %g\n", m); failures++; }
-      else printf("ok   validate rule metric = %g\n", m); }
-    { char msg[256];
-      size_t mn = uc_validation_rule_message(vr, 0, msg, sizeof msg);
-      if (mn == 0) { printf("FAIL validate rule message: empty\n"); failures++; }
-      else printf("ok   validate rule message (len %zu)\n", mn); }
-    /* Out-of-range rule index: severity 0, metric NaN. */
-    check_int("validate rule oob severity", uc_validation_rule_severity(vr, 9), 0);
-    check_dbl("validate rule oob metric", uc_validation_rule_metric(vr, 9), NAN);
-    uc_validation_free(vr);
+    uc_validation *vr = uc_validate_theme(vt);
+    if (vr == NULL) { printf("FAIL validate_theme: NULL\n"); failures++; }
+    else {
+      check_int("validate score (pass)", uc_validation_score(vr), 100);
+      check_int("validate worst (pass)", uc_validation_worst(vr), UC_SEVERITY_INFO);
+      check_int("validate rule_count", uc_validation_rule_count(vr), 1);
+      { char rname[64];
+        uc_validation_rule_name(vr, 0, rname, sizeof rname);
+        check_str("validate rule name", rname, "contrast-text-primary"); }
+      check_int("validate rule severity (pass)",
+          uc_validation_rule_severity(vr, 0), UC_SEVERITY_INFO);
+      check_dbl_tol("validate rule threshold",
+          uc_validation_rule_threshold(vr, 0), 4.5, 1e-6);
+      { double m = uc_validation_rule_metric(vr, 0);
+        if (isnan(m) || m < 4.5) { printf("FAIL validate rule metric: %g\n", m); failures++; }
+        else printf("ok   validate rule metric = %g\n", m); }
+      { char msg[256];
+        size_t mn = uc_validation_rule_message(vr, 0, msg, sizeof msg);
+        if (mn == 0) { printf("FAIL validate rule message: empty\n"); failures++; }
+        else printf("ok   validate rule message (len %zu)\n", mn); }
+      /* Out-of-range rule index: severity 0, metric NaN. */
+      check_int("validate rule oob severity", uc_validation_rule_severity(vr, 9), 0);
+      check_dbl("validate rule oob metric", uc_validation_rule_metric(vr, 9), NAN);
+      uc_validation_free(vr);
+    }
+    uc_theme_free(vt);
   }
-  uc_theme_free(vt);
 
   /* Failing theme: white text on white surface fails AA (score 90, Error). */
   uc_token vbad[] = {
@@ -279,13 +291,19 @@ int main(void) {
     { "text.primary", white, NULL }
   };
   uc_theme *vtf = uc_theme_make(vbad, 2, NULL, 0, NULL, 0);
-  uc_validation *vrf = uc_validate_theme(vtf);
-  check_int("validate score (fail)", uc_validation_score(vrf), 90);
-  check_int("validate worst (fail)", uc_validation_worst(vrf), UC_SEVERITY_ERROR);
-  check_int("validate rule severity (fail)",
-      uc_validation_rule_severity(vrf, 0), UC_SEVERITY_ERROR);
-  uc_validation_free(vrf);
-  uc_theme_free(vtf);
+  if (vtf == NULL) { printf("FAIL validate fail theme_make: NULL\n"); failures++; }
+  else {
+    uc_validation *vrf = uc_validate_theme(vtf);
+    if (vrf == NULL) { printf("FAIL validate_theme (fail): NULL\n"); failures++; }
+    else {
+      check_int("validate score (fail)", uc_validation_score(vrf), 90);
+      check_int("validate worst (fail)", uc_validation_worst(vrf), UC_SEVERITY_ERROR);
+      check_int("validate rule severity (fail)",
+          uc_validation_rule_severity(vrf, 0), UC_SEVERITY_ERROR);
+      uc_validation_free(vrf);
+    }
+    uc_theme_free(vtf);
+  }
 
   uc_validation_free(NULL); /* no-op. */
 
