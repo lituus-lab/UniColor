@@ -186,7 +186,7 @@ function makeApi(M) {
       }
       M._free(fgp);
       M._free(bgp);
-      if (v !== v) throw new Error("unicolor: contrast failed (sentinel or bad metric)");
+      if (Number.isNaN(v)) throw new Error("unicolor: contrast failed (sentinel or bad metric)");
       return v;
     }
 
@@ -199,7 +199,7 @@ function makeApi(M) {
       M._free(mp);
       M._free(ap);
       M._free(bp);
-      if (v !== v) throw new Error("unicolor: distance failed (sentinel or bad metric)");
+      if (Number.isNaN(v)) throw new Error("unicolor: distance failed (sentinel or bad metric)");
       return v;
     }
 
@@ -331,14 +331,22 @@ function makeApi(M) {
     }
 
     static make(tag, colors, intent, seed = 0) {
+      // seed is int64 on the C ABI; Emscripten requires a BigInt for i64 args.
+      // Validate up front (before allocating the color buffer) so a non-integer
+      // or out-of-i64-range seed is a clean Error, not emcc's BigInt exception.
+      let seedBi;
+      if (typeof seed === "bigint") seedBi = seed;
+      else if (Number.isInteger(seed)) seedBi = BigInt(seed);
+      else throw new Error("unicolor: palette seed must be an integer (number or bigint)");
+      if (seedBi < -0x8000000000000000n || seedBi > 0x7fffffffffffffffn)
+        throw new Error("unicolor: palette seed out of i64 range");
       const n = colors.length;
       let ptr = 0;
       if (n > 0) {
         ptr = M._malloc(n * COLOR_SIZE);
         for (let i = 0; i < n; i++) writeColor(colors[i], ptr + i * COLOR_SIZE);
       }
-      // seed is int64 on the C ABI; Emscripten requires a BigInt for i64 args.
-      const h = M._uc_palette_make(tag, ptr, n, intent, BigInt(seed));
+      const h = M._uc_palette_make(tag, ptr, n, intent, seedBi);
       if (ptr) M._free(ptr);
       if (h === 0) {
         throw new Error("unicolor: palette build failed (bad tag/intent or empty colors)");
@@ -362,12 +370,17 @@ function makeApi(M) {
     }
 
     sample(t) {
+      // Pre-check t in [0,1] for a clean RangeError (mirrors colorAt); the
+      // native sentinel on a non-ramp structure is then a wrong-structure Error.
+      if (typeof t !== "number" || !(t >= 0) || !(t <= 1)) {
+        throw new RangeError("unicolor: sample t out of [0,1]");
+      }
       const out = M._malloc(COLOR_SIZE);
       M._uc_wasm_palette_sample(this._tok.ptr, out, t);
       const c = readColor(out);
       M._free(out);
       if (c) return c;
-      throw new RangeError("unicolor: sample out of [0,1] or non-ramp structure");
+      throw new Error("unicolor: sample on a non-ramp structure");
     }
 
     role(name) {

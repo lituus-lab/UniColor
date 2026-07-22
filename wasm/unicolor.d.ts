@@ -72,6 +72,7 @@ export type Severity = SeverityOrdinals[keyof SeverityOrdinals];
 // A perceptual color: a SpaceTag, the three chromatic components, and a
 // straight-alpha in [0,1]. A plain JS value — no native memory to free.
 export class Color {
+  constructor(tag: SpaceTag, comps: [number, number, number], alpha?: number);
   readonly tag: SpaceTag;
   readonly comps: [number, number, number];
   readonly alpha: number;
@@ -103,6 +104,7 @@ export type Token =
 // A 3-layer token tree (primitives / semantics / components). Wraps a wasm
 // pointer — call `free()` when done.
 export class Theme {
+  private constructor();
   free(): void;
 
   static make(prims: Token[], sems?: Token[], comps?: Token[]): Theme;
@@ -117,9 +119,10 @@ export class Theme {
 
 // An immutable color set. Wraps a wasm pointer — call `free()` when done.
 export class Palette {
+  private constructor();
   free(): void;
 
-  static make(tag: PaletteTag, colors: Color[], intent: PaletteIntent, seed?: number): Palette;
+  static make(tag: PaletteTag, colors: Color[], intent: PaletteIntent, seed?: number | bigint): Palette;
 
   /** Discrete index for the five discrete structures; RangeError out of range. */
   colorAt(i: number): Color;
@@ -135,6 +138,7 @@ export class Palette {
 // Import diagnostics. The target theme/palette is not held here — use
 // `importTheme` / `importPalette`. Wraps a wasm pointer — call `free()`.
 export class ImportReport {
+  private constructor();
   free(): void;
 
   static importReported(input: string, fmt: string, strict?: boolean): ImportReport;
@@ -158,6 +162,7 @@ export interface Rule {
 // The result of running every registered rule over a theme or palette. Wraps a
 // wasm pointer — call `free()` when done.
 export class ValidationReport {
+  private constructor();
   free(): void;
 
   static validateTheme(t: Theme): ValidationReport;
@@ -184,7 +189,7 @@ export interface UniColorAPI {
   distance(a: Color, b: Color, metric: string): number;
 
   theme(prims: Token[], sems?: Token[], comps?: Token[]): Theme;
-  palette(tag: PaletteTag, colors: Color[], intent: PaletteIntent, seed?: number): Palette;
+  palette(tag: PaletteTag, colors: Color[], intent: PaletteIntent, seed?: number | bigint): Palette;
 
   importTheme(input: string, fmt: string, strict?: boolean): Theme;
   importPalette(input: string, fmt: string, strict?: boolean): Palette;

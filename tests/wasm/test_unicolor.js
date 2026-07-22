@@ -27,18 +27,22 @@ function checkDbl(name, got, want) {
   else ok(name);
 }
 function checkDblTol(name, got, want, tol) {
-  if (Math.abs(got - want) > tol) fail(name, `got ${got} want ${want} (tol ${tol})`);
+  // Number.isNaN first: Math.abs(NaN - want) is NaN, and `NaN > tol` is false,
+  // so without this a NaN got would pass a tolerance check.
+  if (Number.isNaN(got) || Math.abs(got - want) > tol) fail(name, `got ${got} want ${want} (tol ${tol})`);
   else ok(name);
 }
 function checkColorOk(name, c) {
   if (!c || c.tag === 0) fail(name, "got sentinel/null");
   else ok(name + " tag=" + c.tag);
 }
-// Assert fn throws (Error or RangeError). kind, if set, must be the constructor.
+// Assert fn throws an Error; if kind is given, it must also be that constructor.
+// Always require an Error so an omitted kind no longer accepts string throws.
 function checkThrows(name, fn, kind) {
   try { fn(); fail(name, "expected throw"); }
   catch (e) {
-    if (kind && !(e instanceof kind)) fail(name, `got ${e.constructor.name}: ${e.message}`);
+    if (!(e instanceof Error)) fail(name, `got non-Error: ${String(e)}`);
+    else if (kind && !(e instanceof kind)) fail(name, `got ${e.constructor.name}: ${e.message}`);
     else ok(name);
   }
 }
@@ -105,7 +109,10 @@ checkThrows("convert unknown target", () => red.convert(9999));
 const black = uc.srgb(0, 0, 0);
 const white = uc.srgb(1, 1, 1);
 checkDblTol("contrast black/white", uc.contrast(black, white), 21.0, 0.01);
-checkThrows("contrast sentinel", () => uc.contrast(uc.parse("notacolor"), white));
+// A sentinel-shaped color (tag 0) the Color constructor would refuse, fed
+// straight to contrast so its invalid-color path runs — not parse's rejection.
+const sentinel = { tag: 0, comps: [0, 0, 0], alpha: 1, contrast: uc.Color.prototype.contrast };
+checkThrows("contrast sentinel", () => uc.contrast(sentinel, white));
 checkThrows("contrast bad metric", () => uc.contrast(black, white, "bogus"));
 const apca = uc.contrast(black, white, "apca");
 if (Number.isNaN(apca)) fail("contrast apca", "got NaN");

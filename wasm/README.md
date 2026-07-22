@@ -27,7 +27,7 @@ renamed from `unicolor.js`), `unicolor.js` (this glue), `unicolor.d.ts`, and a
 `package.json` (`{"type":"module"}`). Unpack it anywhere and import the glue:
 
 ```js
-import { load } from "unicolor.js";
+import { load } from "./unicolor.js";
 const uc = await load();
 ```
 
