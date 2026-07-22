@@ -99,9 +99,72 @@ cdef extern from "UniColor.h":
     int uc_palette_len(uc_palette *p)
     int uc_palette_tag(uc_palette *p)
     int uc_palette_intent(uc_palette *p)
+    # import handle
+    ctypedef struct uc_import_report:
+        pass
+    uc_theme *uc_import_theme(const char *input, const char *name, int strict)
+    uc_palette *uc_import_palette(const char *input, const char *name, int strict)
+    uc_import_report *uc_import_reported(const char *input, const char *name,
+        int strict)
+    void uc_import_report_free(uc_import_report *r)
+    size_t uc_import_format_name(uc_import_report *r, char *buf, size_t size)
+    size_t uc_import_schema_version(uc_import_report *r, char *buf, size_t size)
+    int uc_import_warning_count(uc_import_report *r)
+    size_t uc_import_warning(uc_import_report *r, int i, char *buf, size_t size)
+    # validation handle
+    int UC_SEVERITY_INFO
+    int UC_SEVERITY_WARNING
+    int UC_SEVERITY_ERROR
+    int UC_SEVERITY_FATAL
+    ctypedef struct uc_validation:
+        pass
+    uc_validation *uc_validate_theme(uc_theme *t)
+    uc_validation *uc_validate_palette(uc_palette *p)
+    void uc_validation_free(uc_validation *r)
+    int uc_validation_score(uc_validation *r)
+    int uc_validation_worst(uc_validation *r)
+    int uc_validation_rule_count(uc_validation *r)
+    size_t uc_validation_rule_name(uc_validation *r, int i, char *buf, size_t size)
+    int uc_validation_rule_severity(uc_validation *r, int i)
+    double uc_validation_rule_metric(uc_validation *r, int i)
+    double uc_validation_rule_threshold(uc_validation *r, int i)
+    size_t uc_validation_rule_message(uc_validation *r, int i, char *buf,
+        size_t size)
 
 # Populate the Nim registries once on import.
 uc_init()
+
+import collections
+Rule = collections.namedtuple(
+    "Rule", ["name", "severity", "metric", "threshold", "message"])
+Warning = collections.namedtuple("Warning", ["message"])
+
+ctypedef size_t (*_imp_buf_fn)(uc_import_report *r, char *buf, size_t size)
+ctypedef size_t (*_val_buf_fn)(uc_validation *r, int i, char *buf, size_t size)
+
+cdef str _read_imp(_imp_buf_fn fn, uc_import_report *r):
+    cdef size_t need = fn(r, NULL, 0)
+    if need == 0:
+        return ""
+    cdef char *buf = <char*>malloc(need + 1)
+    if buf == NULL:
+        raise MemoryError()
+    fn(r, buf, need + 1)
+    cdef str s = buf[:need].decode("utf-8")
+    free(buf)
+    return s
+
+cdef str _read_val(_val_buf_fn fn, uc_validation *r, int i):
+    cdef size_t need = fn(r, i, NULL, 0)
+    if need == 0:
+        return ""
+    cdef char *buf = <char*>malloc(need + 1)
+    if buf == NULL:
+        raise MemoryError()
+    fn(r, i, buf, need + 1)
+    cdef str s = buf[:need].decode("utf-8")
+    free(buf)
+    return s
 
 cdef str _format_css(uc_color c, bint legacy):
     """Measure-then-fill helper for uc_format_css."""
@@ -479,3 +542,147 @@ def theme(list prims, list sems=None, list comps=None):
 
 def palette(int tag, list colors, int intent, int64_t seed=0):
     return Palette.make(tag, colors, intent, seed)
+
+
+# Severity ordinals, mirrored from UniColor.h.
+SEVERITY_INFO = UC_SEVERITY_INFO
+SEVERITY_WARNING = UC_SEVERITY_WARNING
+SEVERITY_ERROR = UC_SEVERITY_ERROR
+SEVERITY_FATAL = UC_SEVERITY_FATAL
+
+
+cdef class ImportReport:
+    """Diagnostics for an import: the reconstructed format name, schema version,
+    and the recoverable warnings. The target theme/palette is not held here —
+    use `import_theme` / `import_palette` for those. Freed on GC."""
+    cdef uc_import_report* _h
+
+    def __dealloc__(self):
+        if self._h != NULL:
+            uc_import_report_free(self._h)
+
+    @classmethod
+    def import_reported(cls, str input, str fmt, bint strict=False):
+        cdef uc_import_report* h = uc_import_reported(
+            input.encode("utf-8"), fmt.encode("utf-8"), strict)
+        if h == NULL:
+            raise ValueError(
+                "import failed (NULL input/name or unknown importer)")
+        cdef ImportReport r = ImportReport()
+        r._h = h
+        return r
+
+    @property
+    def format_name(self):
+        return _read_imp(&uc_import_format_name, self._h)
+
+    @property
+    def schema_version(self):
+        return _read_imp(&uc_import_schema_version, self._h)
+
+    @property
+    def warning_count(self):
+        return uc_import_warning_count(self._h)
+
+    def warning(self, int i):
+        cdef size_t need = uc_import_warning(self._h, i, NULL, 0)
+        if need == 0:
+            raise IndexError("warning index out of range")
+        cdef char* buf = <char*>malloc(need + 1)
+        if buf == NULL:
+            raise MemoryError()
+        uc_import_warning(self._h, i, buf, need + 1)
+        cdef str s = buf[:need].decode("utf-8")
+        free(buf)
+        return Warning(s)
+
+
+cdef class ValidationReport:
+    """The result of running every registered rule over a theme or palette:
+    a 0..100 score, the worst severity, and the per-rule results. Freed on GC."""
+    cdef uc_validation* _h
+
+    def __dealloc__(self):
+        if self._h != NULL:
+            uc_validation_free(self._h)
+
+    @classmethod
+    def validate_theme(cls, Theme t):
+        cdef uc_validation* h = uc_validate_theme(t._h)
+        if h == NULL:
+            raise ValueError("validate_theme failed (NULL handle)")
+        cdef ValidationReport r = ValidationReport()
+        r._h = h
+        return r
+
+    @classmethod
+    def validate_palette(cls, Palette p):
+        cdef uc_validation* h = uc_validate_palette(p._h)
+        if h == NULL:
+            raise ValueError("validate_palette failed (NULL handle)")
+        cdef ValidationReport r = ValidationReport()
+        r._h = h
+        return r
+
+    @property
+    def score(self):
+        return uc_validation_score(self._h)
+
+    @property
+    def worst(self):
+        return uc_validation_worst(self._h)
+
+    @property
+    def rule_count(self):
+        return uc_validation_rule_count(self._h)
+
+    def rule(self, int i):
+        if i < 0 or i >= uc_validation_rule_count(self._h):
+            raise IndexError("rule index out of range")
+        cdef str name = _read_val(&uc_validation_rule_name, self._h, i)
+        cdef str message = _read_val(&uc_validation_rule_message, self._h, i)
+        return Rule(
+            name,
+            uc_validation_rule_severity(self._h, i),
+            uc_validation_rule_metric(self._h, i),
+            uc_validation_rule_threshold(self._h, i),
+            message,
+        )
+
+
+def import_theme(str input, str fmt, bint strict=False):
+    """Import `input` as format `fmt` and return the reconstructed Theme."""
+    cdef uc_theme* h = uc_import_theme(
+        input.encode("utf-8"), fmt.encode("utf-8"), strict)
+    if h == NULL:
+        raise ValueError(
+            "import_theme failed (NULL input/name, unknown importer, kind "
+            "mismatch, or parse failure)")
+    cdef Theme t = Theme()
+    t._h = h
+    return t
+
+
+def import_palette(str input, str fmt, bint strict=False):
+    """Import `input` as format `fmt` and return the reconstructed Palette."""
+    cdef uc_palette* h = uc_import_palette(
+        input.encode("utf-8"), fmt.encode("utf-8"), strict)
+    if h == NULL:
+        raise ValueError(
+            "import_palette failed (NULL input/name, unknown importer, kind "
+            "mismatch, or parse failure)")
+    cdef Palette p = Palette()
+    p._h = h
+    return p
+
+
+def import_reported(str input, str fmt, bint strict=False):
+    return ImportReport.import_reported(input, fmt, strict)
+
+
+def validate_theme(Theme t):
+    return ValidationReport.validate_theme(t)
+
+
+def validate_palette(Palette p):
+    return ValidationReport.validate_palette(p)
