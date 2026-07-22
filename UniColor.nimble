@@ -51,8 +51,14 @@ task testAll, "debug + release + C ABI":
 task example, "Nim demo":
   exec "nim c -r --path:src -o:build/demo examples/demo.nim"
 
+const
+  cliExe =
+    when defined(windows): "build/unicolor.exe"
+    else: "build/unicolor"
+
 task cli, "Build the unicolor CLI":
-  exec "nim c --path:src -o:build/unicolor src/UniColor/cli/cli.nim"
+  exec "nim c -d:release --path:src -o:" & cliExe &
+       " src/UniColor/cli/cli.nim"
 
 # Nim takes `-o:` literally and appends no platform extension.
 const

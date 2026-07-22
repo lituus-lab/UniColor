@@ -95,7 +95,7 @@ t2 = uc.import_theme(j, 'json')          # reconstruct a theme
 
 rep = uc.import_reported(j, 'json')      # diagnostics without the target
 rep.format_name, rep.schema_version, rep.warning_count
-rep.warning(0)                            # Warning(message) — IndexError if out of range
+rep.warning(0)                            # ImportWarningInfo(message) — IndexError if out of range
 
 v = uc.validate_theme(t2)                # run every registered rule
 v.score, v.worst, v.rule_count

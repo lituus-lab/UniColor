@@ -137,7 +137,7 @@ uc_init()
 import collections
 Rule = collections.namedtuple(
     "Rule", ["name", "severity", "metric", "threshold", "message"])
-Warning = collections.namedtuple("Warning", ["message"])
+ImportWarningInfo = collections.namedtuple("ImportWarningInfo", ["message"])
 
 ctypedef size_t (*_imp_buf_fn)(uc_import_report *r, char *buf, size_t size)
 ctypedef size_t (*_val_buf_fn)(uc_validation *r, int i, char *buf, size_t size)
@@ -178,6 +178,28 @@ cdef str _format_css(uc_color c, bint legacy):
     cdef str s = buf[:need].decode("utf-8")
     free(buf)
     return s
+
+
+cdef double _contrast(uc_color fg, uc_color bg, object metric) except *:
+    """Contrast under the default WCAG 2.2 metric, or a named one. Raises
+    ValueError on a sentinel operand or a bad metric (the C call returns NaN)."""
+    cdef double v
+    if metric is None:
+        v = uc_contrast(fg, bg)
+    else:
+        v = uc_contrast_metric(fg, bg, (<str>metric).encode("utf-8"))
+    if v != v:
+        raise ValueError("contrast failed (sentinel operand or bad metric)")
+    return v
+
+
+cdef double _distance(uc_color a, uc_color b, str metric) except *:
+    """Perceptual distance under a named metric. Raises ValueError on a
+    sentinel operand or a bad metric (NaN)."""
+    cdef double v = uc_distance(a, b, metric.encode("utf-8"))
+    if v != v:
+        raise ValueError("distance failed (sentinel operand or bad metric)")
+    return v
 
 cdef class Color:
     """A perceptual color: 4 float32 components + a SpaceTag. Build via the
@@ -251,20 +273,10 @@ cdef class Color:
         return out
 
     def contrast(self, Color bg, str metric=None):
-        cdef double v
-        if metric is None:
-            v = uc_contrast(self._c, bg._c)
-        else:
-            v = uc_contrast_metric(self._c, bg._c, metric.encode("utf-8"))
-        if v != v:  # NaN: sentinel operand or bad metric
-            raise ValueError("contrast failed (sentinel operand or bad metric)")
-        return v
+        return _contrast(self._c, bg._c, metric)
 
     def distance(self, Color other, str metric):
-        cdef double v = uc_distance(self._c, other._c, metric.encode("utf-8"))
-        if v != v:
-            raise ValueError("distance failed (sentinel operand or bad metric)")
-        return v
+        return _distance(self._c, other._c, metric)
 
     def __repr__(self):
         return "Color(%s)" % self.format_css()
@@ -307,21 +319,11 @@ def make(int tag, float c0, float c1, float c2, float alpha=1.0):
 
 
 def contrast(Color fg, Color bg, str metric=None):
-    cdef double v
-    if metric is None:
-        v = uc_contrast(fg._c, bg._c)
-    else:
-        v = uc_contrast_metric(fg._c, bg._c, metric.encode("utf-8"))
-    if v != v:
-        raise ValueError("contrast failed (sentinel operand or bad metric)")
-    return v
+    return _contrast(fg._c, bg._c, metric)
 
 
 def distance(Color a, Color b, str metric):
-    cdef double v = uc_distance(a._c, b._c, metric.encode("utf-8"))
-    if v != v:
-        raise ValueError("distance failed (sentinel operand or bad metric)")
-    return v
+    return _distance(a._c, b._c, metric)
 
 
 # SpaceTag ordinals, mirrored from UniColor.h so callers can pass `uc.TAG_OKLCH`
@@ -390,6 +392,10 @@ cdef uc_token* _toks(list toks, list keep, size_t* n):
         keep.append(nb)
         arr[i].name = nb
         if t[1] is None:
+            arr[i].color.comps[0] = 0.0
+            arr[i].color.comps[1] = 0.0
+            arr[i].color.comps[2] = 0.0
+            arr[i].color.comps[3] = 0.0
             arr[i].color.tag = UC_TAG_UNKNOWN
         else:
             col = <Color>t[1]
@@ -585,16 +591,24 @@ cdef class ImportReport:
         return uc_import_warning_count(self._h)
 
     def warning(self, int i):
-        cdef size_t need = uc_import_warning(self._h, i, NULL, 0)
-        if need == 0:
+        # Range-check against warning_count: uc_import_warning returns 0 both
+        # for an out-of-range index and for a legitimately empty message, so
+        # the count is the real bound and an empty message yields ImportWarningInfo("").
+        cdef size_t need
+        cdef char* buf
+        cdef str s
+        if i < 0 or i >= uc_import_warning_count(self._h):
             raise IndexError("warning index out of range")
-        cdef char* buf = <char*>malloc(need + 1)
-        if buf == NULL:
-            raise MemoryError()
-        uc_import_warning(self._h, i, buf, need + 1)
-        cdef str s = buf[:need].decode("utf-8")
-        free(buf)
-        return Warning(s)
+        need = uc_import_warning(self._h, i, NULL, 0)
+        s = ""
+        if need > 0:
+            buf = <char*>malloc(need + 1)
+            if buf == NULL:
+                raise MemoryError()
+            uc_import_warning(self._h, i, buf, need + 1)
+            s = buf[:need].decode("utf-8")
+            free(buf)
+        return ImportWarningInfo(s)
 
 
 cdef class ValidationReport:

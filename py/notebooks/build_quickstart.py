@@ -39,21 +39,20 @@ string or a space-specific factory; a bad build raises `ValueError` (the C
 sentinel has `tag == unicolor.TAG_UNKNOWN`)."""),
     ("code", """red = unicolor.parse('#ff0000')
 red.tag, red.components, red.alpha, red.format_css()"""),
-    ("code", """unicolor.srgb(1.0, 0.0, 0.0).format_css()
-unicolor.oklch(0.65, 0.18, 250.0).format_css()"""),
+    ("code", """unicolor.srgb(1.0, 0.0, 0.0).format_css(), unicolor.oklch(0.65, 0.18, 250.0).format_css()"""),
     ("code", """# format_css(legacy=True) emits sRGB hex; default is OKLCH.
 red.format_css(legacy=True)"""),
     ("md", "## Conversion & gamut mapping"),
     ("code", """# convert() changes the space; gamut_map() maps an out-of-gamut color
 # into a target space's realizable range.
-red.convert(unicolor.TAG_OKLCH).format_css()
-unicolor.oklch(0.7, 0.3, 200.0).gamut_map(unicolor.TAG_SRGB).format_css(legacy=True)"""),
+(red.convert(unicolor.TAG_OKLCH).format_css(),
+ unicolor.oklch(0.7, 0.3, 200.0).gamut_map(unicolor.TAG_SRGB).format_css(legacy=True))"""),
     ("md", """## Contrast & distance
 
 `contrast` defaults to the WCAG 2.2 ratio; named metrics like `apca` are
 supported. `distance` is a perceptual ΔE under a named metric."""),
-    ("code", """unicolor.contrast(unicolor.parse('#000000'), unicolor.parse('#ffffff'))
-unicolor.contrast(unicolor.parse('#000000'), unicolor.parse('#ffffff'), metric='apca')"""),
+    ("code", """(unicolor.contrast(unicolor.parse('#000000'), unicolor.parse('#ffffff')),
+ unicolor.contrast(unicolor.parse('#000000'), unicolor.parse('#ffffff'), metric='apca'))"""),
     ("code", """unicolor.distance(unicolor.parse('#ff0000'), unicolor.parse('#00ff00'), 'deltaE_ok')"""),
     ("md", """## Themes
 
@@ -66,7 +65,7 @@ semantics and components carry an alias."""),
     [('text.primary', None, 'text')],
 )
 t.count, t.has_role('text.primary')"""),
-    ("code", """t.resolve('text.primary').format_css()
+    ("code", """print(t.resolve('text.primary').format_css())
 print(t.export('css'))"""),
     ("md", """## Palettes
 
