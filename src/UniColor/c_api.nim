@@ -92,6 +92,21 @@ proc readColors(a: ptr UcColor, n: csize_t): seq[Color] {.raises: [].} =
   for i in 0 .. last:
     result.add(fromUc(arr[i]))
 
+# Box a Nim value on the heap as an opaque C handle (alloc0 + assign). The
+# caller owns the pointer; release with `unbox`. Shared by every handle-
+# returning proc (theme / palette / import report / validation).
+proc box[T](v: T): ptr T {.raises: [].} =
+  let p = cast[ptr T](alloc0(sizeof(T)))
+  p[] = v
+  p
+
+# Release a boxed handle: run its destructor (frees seq / Table storage) then
+# the allocation. NULL is a no-op.
+proc unbox[T](p: ptr T) {.raises: [].} =
+  if not p.isNil:
+    `=destroy`(p[])
+    dealloc(p)
+
 # Unmangled C symbols, C calling convention, exported from the shared lib.
 {.push exportc, cdecl, dynlib.}
 
@@ -224,17 +239,11 @@ proc uc_theme_make(prim: ptr UcToken, nprim: csize_t, sem: ptr UcToken,
   ## caller owns the handle; free it with `uc_theme_free`.
   let r = theme(readTokens(prim, nprim), readTokens(sem, nsem),
       readTokens(comp, ncomp))
-  if r.isErr:
-    return nil
-  let p = cast[ptr Theme](alloc0(sizeof(Theme)))
-  p[] = r.get
-  p
+  if r.isErr: nil else: box(r.get)
 
 proc uc_theme_free(t: ptr Theme) {.raises: [].} =
   ## Release a theme handle and its token-tree storage. NULL is a no-op.
-  if not t.isNil:
-    `=destroy`(t[])
-    dealloc(t)
+  unbox(t)
 
 proc uc_theme_resolve(t: ptr Theme, role: cstring): UcColor {.raises: [].} =
   ## Resolve a role to a color (component -> semantic -> primitive). Returns the
@@ -280,18 +289,11 @@ proc uc_palette_make(tag: cint, colors: ptr UcColor, ncolors: csize_t,
     return nil
   let r = palette(cast[PaletteTag](int(tag)), readColors(colors, ncolors),
       cast[PaletteIntent](int(intent)), seed)
-  if r.isErr:
-    nil
-  else:
-    let p = cast[ptr Palette](alloc0(sizeof(Palette)))
-    p[] = r.get
-    p
+  if r.isErr: nil else: box(r.get)
 
 proc uc_palette_free(p: ptr Palette) {.raises: [].} =
   ## Release a palette handle and its color/role storage. NULL is a no-op.
-  if not p.isNil:
-    `=destroy`(p[])
-    dealloc(p)
+  unbox(p)
 
 proc uc_palette_color_at(p: ptr Palette, i: cint): UcColor {.raises: [].} =
   ## Discrete index for the five discrete structures. Sentinel on a NULL handle,
@@ -341,12 +343,7 @@ proc uc_import_theme(input: cstring, name: cstring, strict: cint): ptr Theme {.
   if input.isNil or name.isNil:
     return nil
   let r = importTheme($input, $name, ImportOpts(strict: strict != 0))
-  if r.isErr:
-    nil
-  else:
-    let p = cast[ptr Theme](alloc0(sizeof(Theme)))
-    p[] = r.get
-    p
+  if r.isErr: nil else: box(r.get)
 
 proc uc_import_palette(input: cstring, name: cstring,
     strict: cint): ptr Palette {.
@@ -357,12 +354,7 @@ proc uc_import_palette(input: cstring, name: cstring,
   if input.isNil or name.isNil:
     return nil
   let r = importPalette($input, $name, ImportOpts(strict: strict != 0))
-  if r.isErr:
-    nil
-  else:
-    let p = cast[ptr Palette](alloc0(sizeof(Palette)))
-    p[] = r.get
-    p
+  if r.isErr: nil else: box(r.get)
 
 proc uc_import_reported(input: cstring, name: cstring,
     strict: cint): ptr ImportReport {.raises: [].} =
@@ -375,19 +367,12 @@ proc uc_import_reported(input: cstring, name: cstring,
   if input.isNil or name.isNil:
     return nil
   let r = importReported($input, $name, ImportOpts(strict: strict != 0))
-  if r.isErr:
-    nil
-  else:
-    let p = cast[ptr ImportReport](alloc0(sizeof(ImportReport)))
-    p[] = r.get
-    p
+  if r.isErr: nil else: box(r.get)
 
 proc uc_import_report_free(r: ptr ImportReport) {.raises: [].} =
   ## Release an import-report handle and its target/warnings storage. NULL is a
   ## no-op.
-  if not r.isNil:
-    `=destroy`(r[])
-    dealloc(r)
+  unbox(r)
 
 proc uc_import_format_name(r: ptr ImportReport, buf: ptr char,
     size: csize_t): csize_t {.raises: [].} =
@@ -420,29 +405,17 @@ proc uc_import_warning(r: ptr ImportReport, i: cint, buf: ptr char,
 proc uc_validate_theme(t: ptr Theme): ptr ValidationReport {.raises: [].} =
   ## Run every registered theme rule and return the report. NULL on a NULL
   ## handle. The caller owns the handle; free with `uc_validation_free`.
-  if t.isNil:
-    nil
-  else:
-    let p = cast[ptr ValidationReport](alloc0(sizeof(ValidationReport)))
-    p[] = validateTheme(t[])
-    p
+  if t.isNil: nil else: box(validateTheme(t[]))
 
 proc uc_validate_palette(p: ptr Palette): ptr ValidationReport {.raises: [].} =
   ## Run every registered palette rule and return the report. NULL on a NULL
   ## handle. Free with `uc_validation_free`.
-  if p.isNil:
-    nil
-  else:
-    let q = cast[ptr ValidationReport](alloc0(sizeof(ValidationReport)))
-    q[] = validatePalette(p[])
-    q
+  if p.isNil: nil else: box(validatePalette(p[]))
 
 proc uc_validation_free(r: ptr ValidationReport) {.raises: [].} =
   ## Release a validation-report handle and its rule-result storage. NULL is a
   ## no-op.
-  if not r.isNil:
-    `=destroy`(r[])
-    dealloc(r)
+  unbox(r)
 
 proc uc_validation_score(r: ptr ValidationReport): cint {.raises: [].} =
   ## 0..100 score (0 for NULL).
