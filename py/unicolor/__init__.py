@@ -1,14 +1,87 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright 2026 lituus-lab
 """unicolor — Python binding over the UniColor C library."""
-from ._core import version as _version_c
+from ._core import (
+    Color,
+    version,
+    abi_major,
+    abi_minor,
+    abi_patch,
+    parse,
+    srgb,
+    oklch,
+    make,
+    contrast,
+    distance,
+    TAG_UNKNOWN,
+    TAG_SRGB,
+    TAG_SRGB_LIN,
+    TAG_P3,
+    TAG_P3_LIN,
+    TAG_REC2020,
+    TAG_REC2020_LIN,
+    TAG_A98,
+    TAG_A98_LIN,
+    TAG_PROPHOTO,
+    TAG_PROPHOTO_LIN,
+    TAG_XYZ,
+    TAG_XYY,
+    TAG_LAB,
+    TAG_LCH,
+    TAG_OKLAB,
+    TAG_OKLCH,
+    TAG_HSV,
+    TAG_HSL,
+    TAG_HWB,
+    TAG_CMYK,
+    TAG_YCBCR,
+    TAG_ICTCP,
+    TAG_JZAZBZ,
+    TAG_CAM16,
+    TAG_CAM16_UCS,
+    TAG_HCT,
+)
 
-__version__ = _version_c().decode("ascii")
+__version__ = version()
 
-
-def version():
-    """C library version string."""
-    return _version_c().decode("ascii")
-
-
-__all__ = ["version", "__version__"]
+__all__ = [
+    "Color",
+    "version",
+    "abi_major",
+    "abi_minor",
+    "abi_patch",
+    "parse",
+    "srgb",
+    "oklch",
+    "make",
+    "contrast",
+    "distance",
+    "TAG_UNKNOWN",
+    "TAG_SRGB",
+    "TAG_SRGB_LIN",
+    "TAG_P3",
+    "TAG_P3_LIN",
+    "TAG_REC2020",
+    "TAG_REC2020_LIN",
+    "TAG_A98",
+    "TAG_A98_LIN",
+    "TAG_PROPHOTO",
+    "TAG_PROPHOTO_LIN",
+    "TAG_XYZ",
+    "TAG_XYY",
+    "TAG_LAB",
+    "TAG_LCH",
+    "TAG_OKLAB",
+    "TAG_OKLCH",
+    "TAG_HSV",
+    "TAG_HSL",
+    "TAG_HWB",
+    "TAG_CMYK",
+    "TAG_YCBCR",
+    "TAG_ICTCP",
+    "TAG_JZAZBZ",
+    "TAG_CAM16",
+    "TAG_CAM16_UCS",
+    "TAG_HCT",
+    "__version__",
+]
