@@ -15,7 +15,7 @@ const cvdMargin = 0.1'f64 ## CVD safety-margin threshold: red and a dark green
                           ## protanopia — a realistic margin for flagging CVD-confusable pairs.
 
 test "accessibility module compiles and is reachable":
-  check accessibilityModule == "0.1.0"
+  check accessibilityModule == "1.0.0"
 
 suite "cvd simulation":
   test "simulateCvd default model returns a color":

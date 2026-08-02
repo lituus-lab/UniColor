@@ -18,4 +18,4 @@ export spline
 export easing
 export batch
 
-const interpolationModule* = "0.1.0"
+const interpolationModule* = "1.0.0"

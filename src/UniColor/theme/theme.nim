@@ -41,4 +41,4 @@ runnableExamples:
   # Golden reference theme (Tailwind v3 primitives):
   doAssert tailwindTheme().get.count > 0
 
-const themeModule* = "0.1.0"
+const themeModule* = "1.0.0"

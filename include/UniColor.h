@@ -10,10 +10,10 @@
 extern "C" {
 #endif
 
-#define UC_VERSION_MAJOR 0
-#define UC_VERSION_MINOR 1
+#define UC_VERSION_MAJOR 1
+#define UC_VERSION_MINOR 0
 #define UC_VERSION_PATCH 0
-#define UC_VERSION "0.1.0"
+#define UC_VERSION "1.0.0"
 
 #define UC_VERSION_AT_LEAST(ma, mi, pa) \
   ((UC_VERSION_MAJOR > (ma)) || \

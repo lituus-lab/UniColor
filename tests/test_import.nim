@@ -10,7 +10,7 @@ let red = color(tagSrgb, 0.80'f32, 0.20'f32, 0.20'f32).get
 let blue = color(tagSrgb, 0.20'f32, 0.30'f32, 0.80'f32).get
 
 test "import module compiles and is reachable":
-  check importModule == "0.1.0"
+  check importModule == "1.0.0"
 
 suite "sniff — format auto-detection":
   test "UniColor header is authoritative":

@@ -7,7 +7,7 @@ import UniColor
 proc near(a, b: float64, tol = 1.0e-2): bool = abs(a - b) <= tol
 
 test "interpolation module compiles and is reachable":
-  check interpolationModule == "0.1.0"
+  check interpolationModule == "1.0.0"
 
 suite "hue helpers":
   test "normHue wraps to [0,360)":

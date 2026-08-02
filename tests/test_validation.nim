@@ -15,7 +15,7 @@ let white = color(tagSrgb, 1.0'f32, 1.0'f32, 1.0'f32).get
 let lightGray = color(tagSrgb, 0.9'f32, 0.9'f32, 0.9'f32).get
 
 test "validation module compiles and is reachable":
-  check validationModule == "0.1.0"
+  check validationModule == "1.0.0"
 
 suite "report score + worst severity":
   test "empty rule set -> 100 / Info":

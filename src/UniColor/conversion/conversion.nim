@@ -16,4 +16,4 @@ export gamut
 export clamp
 export batch
 
-const conversionModule* = "0.1.0"
+const conversionModule* = "1.0.0"

@@ -2,7 +2,7 @@
 # Copyright 2026 lituus-lab
 # UniColor — perceptual color engine.
 
-version       = "0.1.0"
+version       = "1.0.0"
 author        = "lituus-lab"
 description   = "Perceptual color engine (Nim + C ABI + Python)"
 license       = "Apache-2.0"

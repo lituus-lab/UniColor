@@ -39,4 +39,4 @@ runnableExamples:
   # CVD-safe reference palette (8 colors, Okabe-Ito) — embedded in palette/safe:
   doAssert okabeIto().len == 8
 
-const paletteModule* = "0.1.0"
+const paletteModule* = "1.0.0"

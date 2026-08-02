@@ -12,4 +12,4 @@ export transfer
 export whitepoint
 export rng
 
-const mathModule* = "0.1.0"
+const mathModule* = "1.0.0"

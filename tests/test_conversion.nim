@@ -7,7 +7,7 @@ import UniColor
 proc near(a, b: float64, tol = 1e-9): bool = abs(a - b) <= tol
 
 test "conversion module compiles and is reachable":
-  check conversionModule == "0.1.0"
+  check conversionModule == "1.0.0"
 
 # --- short-path: isShortPath predicate ----------------------------------------
 

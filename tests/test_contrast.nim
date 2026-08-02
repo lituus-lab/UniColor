@@ -6,7 +6,7 @@ import UniColor
 proc near(a, b: float64, tol = 1.0e-3): bool = abs(a - b) <= tol
 
 test "contrast module compiles and is reachable":
-  check contrastModule == "0.1.0"
+  check contrastModule == "1.0.0"
 
 suite "deltaE metrics":
   test "identical colors are zero distance":

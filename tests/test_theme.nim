@@ -8,7 +8,7 @@ let red = color(tagSrgb, 0.80'f32, 0.20'f32, 0.20'f32).get
 let white = color(tagSrgb, 1.0'f32, 1.0'f32, 1.0'f32).get
 
 test "theme module compiles and is reachable":
-  check themeModule == "0.1.0"
+  check themeModule == "1.0.0"
 
 suite "tree + exact resolve":
   test "component -> semantic -> primitive chain":

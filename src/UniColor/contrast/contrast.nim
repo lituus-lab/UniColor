@@ -40,4 +40,4 @@ runnableExamples:
   let white = color(tagSrgb, 1.0'f32, 1.0'f32, 1.0'f32).get
   doAssert contrastRatio(red, white).get > 1.0
 
-const contrastModule* = "0.1.0"
+const contrastModule* = "1.0.0"

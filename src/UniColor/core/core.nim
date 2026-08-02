@@ -42,4 +42,4 @@ runnableExamples:
   let wide = color(tagSrgb, 1.5'f32, 0.0'f32, 0.0'f32).get
   doAssert wide.comp(0) == 1.5'f32
 
-const coreModule* = "0.1.0"
+const coreModule* = "1.0.0"

@@ -42,4 +42,4 @@ runnableExamples:
   # Dominant colors (histogram modes) in OKLab:
   doAssert dominantColors(img, 2).get.len <= 2
 
-const imageModule* = "0.1.0"
+const imageModule* = "1.0.0"

@@ -28,4 +28,4 @@ export schema
 export reconstruct
 export partial
 
-const importModule* = "0.1.0"
+const importModule* = "1.0.0"

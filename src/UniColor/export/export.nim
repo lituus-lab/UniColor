@@ -22,4 +22,4 @@ export registry
 export serialize
 export base16 # base16Slots / base24ExtraSlots (reused by the Base16 importer).
 
-const exportModule* = "0.1.0"
+const exportModule* = "1.0.0"

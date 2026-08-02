@@ -9,8 +9,8 @@
 import ../UniColor
 
 const
-  AbiMajor = 0
-  AbiMinor = 1
+  AbiMajor = 1
+  AbiMinor = 0
   AbiPatch = 0
 
 # Layout twin of the C `uc_color` struct (include/UniColor.h): 4 float32

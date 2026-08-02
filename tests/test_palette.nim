@@ -11,7 +11,7 @@ proc near(a, b: float64, tol = 1.0e-2): bool = abs(a - b) <= tol
 let baseOklch = color(tagOklch, 0.6'f32, 0.15'f32, 250.0'f32).get
 
 test "palette module compiles and is reachable":
-  check paletteModule == "0.1.0"
+  check paletteModule == "1.0.0"
 
 suite "palette ctor and indexing":
   test "empty colors is InvalidOp":

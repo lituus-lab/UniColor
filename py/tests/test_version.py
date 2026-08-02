@@ -4,5 +4,5 @@ import unicolor
 
 
 def test_version():
-    assert unicolor.version() == "0.1.0"
-    assert unicolor.__version__ == "0.1.0"
+    assert unicolor.version() == "1.0.0"
+    assert unicolor.__version__ == "1.0.0"

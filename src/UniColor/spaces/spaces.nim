@@ -41,4 +41,4 @@ export hdr
 export cam16
 export hct
 
-const spacesModule* = "0.1.0"
+const spacesModule* = "1.0.0"

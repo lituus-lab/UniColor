@@ -254,4 +254,4 @@ discard registerThemeRule(ThemeRule(name: "contrast-text-primary",
 discard registerPaletteRule(PaletteRule(name: "min-delta-e",
     check: minDeltaEOkCheck))
 
-const validationModule* = "0.1.0"
+const validationModule* = "1.0.0"

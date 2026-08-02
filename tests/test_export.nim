@@ -9,7 +9,7 @@ let blue = color(tagOklch, 0.65'f32, 0.18'f32, 250.0'f32).get
 let red = color(tagSrgb, 0.80'f32, 0.20'f32, 0.20'f32).get
 
 test "export module compiles and is reachable":
-  check exportModule == "0.1.0"
+  check exportModule == "1.0.0"
 
 test "ucExportVersion mirrors UniColorVersion (sync invariant)":
   check ucExportVersion == UniColorVersion

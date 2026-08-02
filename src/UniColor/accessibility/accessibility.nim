@@ -37,4 +37,4 @@ runnableExamples:
   let adj = adjustForContrast(dark, white, 4.5).get
   doAssert adj.met
 
-const accessibilityModule* = "0.1.0"
+const accessibilityModule* = "1.0.0"
