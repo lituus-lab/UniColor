@@ -7,12 +7,32 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "unicolor"
 version = "1.0.0"
-description = "Python binding for the UniColor C library"
+description = "Perceptual color engine (Python binding over the UniColor C library)"
 readme = "README.md"
 requires-python = ">=3.9"
 license = "Apache-2.0"
 authors = [{ name = "lbartoletti" }]
+keywords = ["color", "colorspace", "oklch", "css-color-4", "wcag", "contrast", "palette", "theme"]
+classifiers = [
+  "Development Status :: 5 - Production/Stable",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Programming Language :: C",
+  "Topic :: Multimedia :: Graphics",
+  "Topic :: Software Development :: Libraries",
+]
 dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/lituus-lab/UniColor"
+Repository = "https://github.com/lituus-lab/UniColor"
+Issues = "https://github.com/lituus-lab/UniColor/issues"
 
 [project.optional-dependencies]
 test = ["pytest>=7"]
