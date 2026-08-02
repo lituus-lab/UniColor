@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright 2026 lituus-lab
-# hdr — HDR perceptual colour differences: ΔE_ITP (ICtCp, BT.2408) and ΔE_Jz
+# hdr — HDR perceptual color differences: ΔE_ITP (ICtCp, BT.2408) and ΔE_Jz
 # (JzAzBz, Safdar 2017).
 #
 # Each metric reads `comp(0..2)` as its OWN reference-space coords DIRECTLY —

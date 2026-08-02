@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright 2026 lituus-lab
-# cam16ucs — ΔE_CAM16-UCS (CAM16 uniform colour space, Li/Luo et al.). Reads
+# cam16ucs — ΔE_CAM16-UCS (CAM16 uniform color space, Li/Luo et al.). Reads
 # `comp(0..2)` as J', a', b' DIRECTLY — no hub conversion. The UCS transform
 # (CAM16 J,C,h -> J',a',b' with KL/Ka/Kb rescaling and viewing-condition
 # params) is applied when the CAM16-UCS color is built, so this metric is plain
@@ -14,7 +14,7 @@ func compsF64(c: Color): (float64, float64, float64) {.inline.} =
   (c.comp(0).float64, c.comp(1).float64, c.comp(2).float64)
 
 func deltaE_cam16Ucs*(a, b: Color): float64 {.raises: [].} =
-  ## ΔE_CAM16-UCS — euclidean distance in the CAM16 uniform colour space
+  ## ΔE_CAM16-UCS — euclidean distance in the CAM16 uniform color space
   ## (Li/Luo). SYMMETRIC. `ΔE = √(ΔJ'² + Δa'² + Δb'²)` on the UCS coords. The
   ## UCS transform and viewing conditions (L_A, Y_b, surround) are baked into
   ## the CAM16-UCS color itself (cam16.nim), so this primitive carries no

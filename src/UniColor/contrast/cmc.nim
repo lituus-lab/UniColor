@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright 2026 lituus-lab
-# cmc — CMC(l:c) 1984 colour difference (textile / graphic-arts).
+# cmc — CMC(l:c) 1984 color difference (textile / graphic-arts).
 #
 # Reads `comp(0..2)` as CIELAB L,a,b DIRECTLY — no hub conversion (consistent
 # with deltaE76/94/2000; the CMC formula is pure on Lab coords). The caller
