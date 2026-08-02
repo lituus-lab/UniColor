@@ -136,9 +136,29 @@ jobs:
           name: wheel-${{ matrix.os }}
           path: dist/*.whl
 
+  sdist:
+    name: Source distribution
+    needs: guard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { persist-credentials: false }
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -U setuptools wheel Cython
+      # Vendors the Nim source into py/_nimsrc/ (setup.py's vendor_nim_source),
+      # so `pip install --no-binary` can build it on a platform/Python version
+      # with no prebuilt wheel -- nimble/nim must be on the installer's PATH.
+      - run: cd py && python3 setup.py sdist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sdist
+          path: py/dist/*.tar.gz
+
   publish:
     name: Publish
-    needs: [cabi, wheels, wasm]
+    needs: [cabi, wheels, wasm, sdist]
     runs-on: ubuntu-latest
     permissions:
       contents: write

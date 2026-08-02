@@ -41,6 +41,9 @@ py/build/
 py/*.egg-info/
 py/**/__pycache__/
 py/.pytest_cache/
+# vendored by setup.py (vendor_nim_source) right before `sdist` packages
+# files -- shipped inside the sdist tarball, never tracked here
+py/_nimsrc/
 
 # c test/example binaries
 tests/c/test_unicolor
