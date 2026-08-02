@@ -28,3 +28,9 @@ contrast/bridgepca.nim. The ports preserve the version-pinned constant tables
 and the SAPC/BPCA core verbatim; the sign convention (BoW positive, WoB
 negative) and the BridgePCA WoB bridge term are reproduced exactly. The
 original copyright notice and disclaimer apply.
+
+----------------------------------------------------------------------------
+
+Bundles a pinned dependency on NimContracts
+(github.com/lbartoletti/NimContracts), MIT-licensed. Compiled away entirely
+under -d:release (ADR-0001), so it never reaches a release build's binary.

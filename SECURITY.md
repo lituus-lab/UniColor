@@ -6,7 +6,8 @@ Report vulnerabilities via GitHub private vulnerability reporting (Security
 tab → "Report a vulnerability"), not via a public issue. Include: description
 + impact, minimal reproducer, affected version (`uc_version()`).
 
-Only the latest released line is supported. The `0.1.x` C ABI is not yet frozen.
+Only the latest released line is supported. The `1.x` C ABI is frozen; a
+breaking change bumps the major version.
 
 ## Surface
 
