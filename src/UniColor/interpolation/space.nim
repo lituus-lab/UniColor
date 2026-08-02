@@ -59,15 +59,15 @@ proc interpolate*(a, b: Color, t: float32, opts: InterpOpts): Result[Color,
   ## (default `shorter`), hue normalized to [0,360). Alpha is blended linearly;
   ## `opts.premultiplied` (opt-in) blends the non-hue components premultiplied
   ## then un-premultiplies. `t` is clamped to [0,1] when `opts.clampT` (default);
-  ## NaN in `t` is preserved by `clampCibled`. Hub/gamut errors (UnknownSpace,
+  ## NaN in `t` is preserved by `clampTargeted`. Hub/gamut errors (UnknownSpace,
   ## InvalidOp, InvalidColor) propagate unchanged.
   let dOpt = spaceByTag(opts.space)
   if dOpt.isNone:
     return err[Color, ColorError](colorError(UnknownSpace,
         "interpolate: space not registered", spaceName(opts.space)))
   let d = dOpt.get
-  # t handling: clamp by default; NaN preserved by clampCibled.
-  let tt = if opts.clampT: clampCibled(t.float64, 0.0, 1.0) else: t.float64
+  # t handling: clamp by default; NaN preserved by clampTargeted.
+  let tt = if opts.clampT: clampTargeted(t.float64, 0.0, 1.0) else: t.float64
   let caR = to(a, opts.space)
   if caR.isErr:
     return err[Color, ColorError](caR.error)

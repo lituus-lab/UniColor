@@ -14,16 +14,16 @@ suite "numerics — frozen tolerances":
   test "EPS_LAB is exactly 6/29 (no approx)":
     check EPS_LAB == 6.0 / 29.0
 
-suite "clampCibled — targeted, never blanket":
+suite "clampTargeted — targeted, never blanket":
   test "keeps in-range value unchanged":
-    check clampCibled(0.5, 0.0, 1.0) == 0.5
-    check clampCibled(5.0, 0.0, 10.0) == 5.0
+    check clampTargeted(0.5, 0.0, 1.0) == 0.5
+    check clampTargeted(5.0, 0.0, 10.0) == 5.0
   test "clamps below low bound":
-    check clampCibled(-0.5, 0.0, 1.0) == 0.0
+    check clampTargeted(-0.5, 0.0, 1.0) == 0.0
   test "clamps above high bound":
-    check clampCibled(1.5, 0.0, 1.0) == 1.0
+    check clampTargeted(1.5, 0.0, 1.0) == 1.0
   test "preserves NaN — propagation, no masking":
-    check isNan(clampCibled(NaN, 0.0, 1.0))
+    check isNan(clampTargeted(NaN, 0.0, 1.0))
 
 suite "cbrtSigned — preserves sign (OKLab Ottosson)":
   test "positive cube root":

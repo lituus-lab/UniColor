@@ -3,7 +3,7 @@
 # easing — easing functions (CSS Easing Functions Level 1).
 #
 # `easing(t, e)` transforms the parameter `t ∈ [0,1]` BEFORE interpolation. Input
-# is clamped to [0,1] (NaN preserved via `clampCibled`); the result is the eased
+# is clamped to [0,1] (NaN preserved via `clampTargeted`); the result is the eased
 # progress.
 #
 # This module follows CSS Easing Functions Level 1 (the canonical reference):
@@ -181,7 +181,7 @@ proc easing*(t: float64, e: Easing): float64 {.raises: [].} =
   ## for every valid easing; `easing(0, e) == 0` for linear/ease*/cubicBezier/
   ## jumpEnd/jumpNone (jumpStart maps 0 -> 1/n, jumpBoth maps 0 -> 1/(n+1) — both
   ## jump at the start, per CSS).
-  let tc = clampCibled(t, 0.0, 1.0) # clamp input to [0,1]; NaN preserved
+  let tc = clampTargeted(t, 0.0, 1.0) # clamp input to [0,1]; NaN preserved
   case e.kind
   of ekLinear:
     result = tc

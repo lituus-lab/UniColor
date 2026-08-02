@@ -58,8 +58,8 @@ proc gradient*(stops: openArray[ColorStop], t: float32,
           "gradient: stop positions must be sorted non-decreasing", "gradient"))
   let pFirst = stops[0].pos.float64
   let pLast = stops[stops.len - 1].pos.float64
-  # Clamp t to [first_pos, last_pos] by default; NaN preserved by clampCibled.
-  let tt = if opts.clampT: clampCibled(t.float64, pFirst, pLast) else: t.float64
+  # Clamp t to [first_pos, last_pos] by default; NaN preserved by clampTargeted.
+  let tt = if opts.clampT: clampTargeted(t.float64, pFirst, pLast) else: t.float64
   let io = toInterpOpts(opts, opts.clampT)
   # Single stop: that stop at every t (blended with itself -> converted to opts.space).
   if stops.len == 1:

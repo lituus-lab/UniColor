@@ -226,7 +226,7 @@ proc spline*(stops: openArray[ColorStop], t: float32,
     ysAlpha[i] = alphas[i]
   let pFirst = xs[0]
   let pLast = xs[n - 1]
-  let tt = if opts.clampT: clampCibled(t.float64, pFirst, pLast) else: t.float64
+  let tt = if opts.clampT: clampTargeted(t.float64, pFirst, pLast) else: t.float64
   # Segment containing tt (boundary cases clamp to the first/last segment so
   # extrapolation extends the boundary segment rather than returning a constant).
   var seg = 0

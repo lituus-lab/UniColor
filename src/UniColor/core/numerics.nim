@@ -17,7 +17,7 @@ const
   EPS_LAB* = 6.0 / 29.0     # CIELAB ε = 6/29 — chromaticity function threshold
                             # (no approx).
 
-func clampCibled*(v, lo, hi: float64): float64 {.inline, raises: [].} =
+func clampTargeted*(v, lo, hi: float64): float64 {.inline, raises: [].} =
   ## Clamp to explicit output bounds (never blanket). Preserves NaN: a NaN is
   ## neither clamped nor masked.
   if isNaN(v):

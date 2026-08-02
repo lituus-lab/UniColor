@@ -4,10 +4,10 @@
 #
 # Distinct from `gamutMap` (conversion/gamut.nim): `clamp` converts `c` to
 # `target` and clamps each chromatic channel to the target descriptor bounds via
-# `clampCibled` (NaN preserved, not masked). It is the "targeted, never blanket"
+# `clampTargeted` (NaN preserved, not masked). It is the "targeted, never blanket"
 # clip — ONLY out-of-bounds channels are touched; in-bounds channels pass through
 # unchanged (== the raw converted value). Unbounded destinations (XYZ, Lab,
-# OKLab, linear RGB, ...) have no explicit bounds, so `clampCibled(v, -Inf,
+# OKLab, linear RGB, ...) have no explicit bounds, so `clampTargeted(v, -Inf,
 # +Inf)` is a no-op and `clamp(c, target) == to(c, target)`. Conversion itself
 # never clamps (out-of-gamut preserved); clamp is the explicit op the user
 # chooses at export/encoding (default export = gamutMap, clamp optional).
@@ -25,7 +25,7 @@ proc clamp*(c: Color, target: SpaceTag): Result[Color, ColorError] {.raises: [].
   ## Targeted clamp: convert `c` to `target` and clamp each chromatic channel to
   ## the target descriptor bounds. In-bounds channels pass through unchanged
   ## (only out-of-bounds channels are touched); unbounded channels are no-ops.
-  ## NaN is preserved by `clampCibled` (visible, not masked) — a NaN reaching the
+  ## NaN is preserved by `clampTargeted` (visible, not masked) — a NaN reaching the
   ## `color` constructor is detected at bounds as InvalidColor. Alpha is
   ## preserved. Errors from `to` (UnknownSpace, InvalidOp for CMYK, InvalidColor)
   ## propagate unchanged.
@@ -45,7 +45,7 @@ proc clamp*(c: Color, target: SpaceTag): Result[Color, ColorError] {.raises: [].
   # the 3-slot array is safe.
   var comps: array[3, float32]
   for i in 0 ..< d.chromaticCount:
-    comps[i] = toF32(clampCibled(cv.comp(i).float64, d.compMin[i], d.compMax[i]))
+    comps[i] = toF32(clampTargeted(cv.comp(i).float64, d.compMin[i], d.compMax[i]))
   # Surface InvalidColor honestly if a NaN/Inf reached the constructor; `.get`
   # here would read the inactive case-object field (UB) on the err path.
   let built = color(target, comps[0], comps[1], comps[2], alpha)
