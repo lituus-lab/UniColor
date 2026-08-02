@@ -17,8 +17,8 @@ This page is a nimib book: every Nim block below is compiled and run when the
 book is built, and the output shown is what the code actually produced. A change
 that breaks the API breaks the docs build, so the two cannot drift apart.
 
-The book ships first as a scaffold and grows with the domain across the
-following PRs; what is live today is the version contract every surface shares.
+This page walks the version contract every surface shares, then the color
+core, conversions, contrast, palettes, and themes below.
 """
 
 nbCode:
