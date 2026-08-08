@@ -9,7 +9,7 @@ license       = "Apache-2.0"
 srcDir        = "src"
 
 requires "nim >= 2.0.0"
-requires "https://github.com/lbartoletti/NimContracts#5da33902d5d6e6738541e978da1d005a3f51517b"
+requires "https://github.com/lbartoletti/NimContracts#main"
 
 task lint, "Fail if nimpretty would reformat a source":
   exec "nim c -r --hints:off -o:build/lint_tool tools/lint.nim"
