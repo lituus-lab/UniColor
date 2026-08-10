@@ -9,7 +9,7 @@ name = "unicolor"
 version = "1.0.0"
 description = "Perceptual color engine (Python binding over the UniColor C library)"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = "Apache-2.0"
 authors = [{ name = "lbartoletti" }]
 keywords = ["color", "colorspace", "oklch", "css-color-4", "wcag", "contrast", "palette", "theme"]
@@ -17,7 +17,6 @@ classifiers = [
   "Development Status :: 5 - Production/Stable",
   "Intended Audience :: Developers",
   "Programming Language :: Python :: 3",
-  "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
@@ -35,7 +34,7 @@ Repository = "https://github.com/lituus-lab/UniColor"
 Issues = "https://github.com/lituus-lab/UniColor/issues"
 
 [project.optional-dependencies]
-test = ["pytest>=7"]
+test = ["pytest>=9.1.1"]
 # Builds py/notebooks/quickstart.ipynb via py/notebooks/build_quickstart.py.
 notebook = ["nbformat>=5", "nbclient>=0.10", "ipykernel"]
 
