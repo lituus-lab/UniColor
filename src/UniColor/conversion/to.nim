@@ -21,6 +21,8 @@ import UniColor/conversion/hub
 # `fromXYZ`. Returns UnknownSpace for an unregistered target, InvalidOp for a
 # wired-source to a not-yet-wired target family (e.g. CMYK).
 proc to*(c: Color, target: SpaceTag): Result[Color, ColorError] {.raises: [].} =
+  if c.spaceTag == target:
+    return ok[Color, ColorError](c)
   # Exact pairs (Lab<->LCH, OKLab<->OKLCH, sRGB<->sRGB-linear, HSV<->HSL<->HWB)
   # take a direct short-path that bypasses the XYZ hub — exact, no double round.
   if isShortPath(c.spaceTag, target):
