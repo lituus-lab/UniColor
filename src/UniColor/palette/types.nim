@@ -49,6 +49,13 @@ type
     seed: int64
     roles: Table[string, int]
 
+  PreparedPaletteSampler* = object
+    ## Validated ordered palette sampler reusable across samples.
+    gradient: PreparedGradient
+    singleColor: Color
+    isSingle: bool
+    initialized: bool
+
 # Public read-only accessors (no setters -> immutability is structural).
 proc tag*(p: Palette): PaletteTag {.raises: [].} = p.tag
 proc intent*(p: Palette): PaletteIntent {.raises: [].} = p.intent
@@ -62,6 +69,13 @@ func isDiscrete(t: PaletteTag): bool {.raises: [].} =
 
 func isOrderedRamp(t: PaletteTag): bool {.raises: [].} =
   t in {palOrdered, palScientific, palContinuous}
+
+proc evenlySpacedStops(colors: openArray[Color]): seq[ColorStop] {.raises: [].} =
+  result = newSeq[ColorStop](colors.len)
+  let denominator = float32(colors.len - 1)
+  for index in 0 ..< colors.len:
+    result[index] = ColorStop(color: colors[index],
+        pos: float32(index) / denominator)
 
 proc palette*(tag: PaletteTag, colors: openArray[Color], intent: PaletteIntent,
     seed: int64, roles: Table[string, int] = initTable[string,
@@ -110,11 +124,40 @@ proc sample*(p: Palette, t: float64): Result[Color, ColorError] {.raises: [].} =
   # Build evenly-spaced stops in [0,1] and delegate the blend (hue method,
   # premultiplied alpha, gamut map) to the interpolation module — reuse, not
   # reinvent.
-  var stops: seq[ColorStop] = newSeq[ColorStop](p.colors.len)
-  let denom = float32(p.colors.len - 1)
-  for i in 0 ..< p.colors.len:
-    stops[i] = ColorStop(color: p.colors[i], pos: float32(i) / denom)
+  let stops = evenlySpacedStops(p.colors)
   gradient(stops, t.float32, GradientOpts())
+
+proc prepareSampler*(p: Palette): Result[PreparedPaletteSampler,
+    ColorError] {.raises: [].} =
+  ## Validate an ordered palette and retain its interpolation state once.
+  if not p.tag.isOrderedRamp:
+    return err[PreparedPaletteSampler, ColorError](colorError(InvalidOp,
+        "prepareSampler: structure " & $p.tag & " is not an ordered ramp",
+        "prepareSampler"))
+  if p.colors.len == 0:
+    return err[PreparedPaletteSampler, ColorError](colorError(InvalidOp,
+        "prepareSampler: empty color set", "prepareSampler"))
+  if p.colors.len == 1:
+    return ok[PreparedPaletteSampler, ColorError](PreparedPaletteSampler(
+        singleColor: p.colors[0], isSingle: true, initialized: true))
+  let prepared = prepareGradient(evenlySpacedStops(p.colors), GradientOpts())
+  if prepared.isErr:
+    return err[PreparedPaletteSampler, ColorError](prepared.error)
+  ok[PreparedPaletteSampler, ColorError](PreparedPaletteSampler(
+      gradient: prepared.get, initialized: true))
+
+proc sample*(sampler: PreparedPaletteSampler,
+    t: float64): Result[Color, ColorError] {.raises: [].} =
+  ## Sample a prepared ordered palette without rebuilding gradient stops.
+  if not sampler.initialized:
+    return err[Color, ColorError](colorError(InvalidOp,
+        "sample: uninitialized prepared palette sampler", "sample"))
+  if t < 0.0 or t > 1.0:
+    return err[Color, ColorError](colorError(InvalidColor,
+        "sample: t must be in [0,1], got " & $t, "sample"))
+  if sampler.isSingle:
+    return ok[Color, ColorError](sampler.singleColor)
+  sampler.gradient.sample(t.float32)
 
 proc role*(p: Palette, name: string): Result[Color, ColorError] {.raises: [].} =
   ## Role access for `Semantic`. `InvalidOp` for other structures. Unknown role

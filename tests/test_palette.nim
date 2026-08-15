@@ -52,6 +52,26 @@ suite "palette ctor and indexing":
     let b = color(tagSrgb, 1.0'f32, 1.0'f32, 1.0'f32).get
     let p = palette(palOrdered, [a, b], intentSequential, 0).get
     check sample(p, 1.5).error.kind == InvalidColor
+  test "prepared sampler matches scalar sampling":
+    let a = color(tagSrgb, 0.1'f32, 0.2'f32, 0.3'f32).get
+    let b = color(tagSrgb, 0.4'f32, 0.5'f32, 0.6'f32).get
+    let c = color(tagSrgb, 0.7'f32, 0.8'f32, 0.9'f32).get
+    let p = palette(palOrdered, [a, b, c], intentSequential, 0).get
+    let prepared = p.prepareSampler().get
+    for t in [0.0, 0.2, 0.5, 0.9, 1.0]:
+      check prepared.sample(t).get == p.sample(t).get
+  test "prepared sampler preserves a single color":
+    let a = color(tagSrgb, 0.1'f32, 0.2'f32, 0.3'f32).get
+    let p = palette(palOrdered, [a], intentSequential, 0).get
+    check p.prepareSampler().get.sample(0.5).get == a
+  test "prepared sampler rejects invalid state and inputs":
+    let a = color(tagSrgb, 0.1'f32, 0.2'f32, 0.3'f32).get
+    let unordered = palette(palUnordered, [a], intentQualitative, 0).get
+    check unordered.prepareSampler().error.kind == InvalidOp
+    check Palette().prepareSampler().error.kind == InvalidOp
+    check PreparedPaletteSampler().sample(0.5).error.kind == InvalidOp
+    let ordered = palette(palOrdered, [a], intentSequential, 0).get
+    check ordered.prepareSampler().get.sample(-0.1).error.kind == InvalidColor
   test "role access on Semantic":
     var roles = initTable[string, int]()
     roles["fg"] = 0
