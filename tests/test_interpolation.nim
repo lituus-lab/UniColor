@@ -67,6 +67,25 @@ suite "gradient":
                  ColorStop(color: b, pos: 1.0'f32)]
     let r = gradient(stops, 0.5'f32, GradientOpts(space: tagOklab)).get
     check near(r.comp(0).float64, 0.6)
+  test "duplicate endpoint positions resolve to the rightmost stop":
+    # A shared position is a hard stop; at exactly that position the rightmost
+    # stop wins, at the endpoints just as it already does inside the ramp.
+    let a = color(tagOklab, 0.1'f32, 0.0'f32, 0.0'f32).get
+    let b = color(tagOklab, 0.2'f32, 0.0'f32, 0.0'f32).get
+    let c = color(tagOklab, 0.3'f32, 0.0'f32, 0.0'f32).get
+    let opts = GradientOpts(space: tagOklab)
+    let atStart = [ColorStop(color: a, pos: 0.0'f32),
+                   ColorStop(color: b, pos: 0.0'f32),
+                   ColorStop(color: c, pos: 1.0'f32)]
+    check near(gradient(atStart, 0.0'f32, opts).get.comp(0).float64, 0.2)
+    check near(prepareGradient(atStart, opts).get.sample(0.0'f32)
+      .get.comp(0).float64, 0.2)
+    let atEnd = [ColorStop(color: a, pos: 0.0'f32),
+                 ColorStop(color: b, pos: 1.0'f32),
+                 ColorStop(color: c, pos: 1.0'f32)]
+    check near(gradient(atEnd, 1.0'f32, opts).get.comp(0).float64, 0.3)
+    check near(prepareGradient(atEnd, opts).get.sample(1.0'f32)
+      .get.comp(0).float64, 0.3)
   test "empty stops is InvalidOp":
     let stops: seq[ColorStop] = @[]
     check gradient(stops, 0.5'f32, GradientOpts()).error.kind == InvalidOp
@@ -76,6 +95,25 @@ suite "gradient":
     let stops = [ColorStop(color: a, pos: 1.0'f32),
                  ColorStop(color: b, pos: 0.0'f32)]
     check gradient(stops, 0.5'f32, GradientOpts()).error.kind == InvalidOp
+  test "prepared gradients match scalar gradients and retain their stops":
+    let a = color(tagOklab, 0.4'f32, 0.1'f32, -0.1'f32).get
+    let b = color(tagOklab, 0.6'f32, 0.0'f32, 0.0'f32).get
+    let c = color(tagOklab, 0.8'f32, -0.1'f32, 0.1'f32).get
+    var stops = @[ColorStop(color: a, pos: 0.0'f32),
+      ColorStop(color: b, pos: 0.5'f32),
+      ColorStop(color: c, pos: 1.0'f32)]
+    let opts = GradientOpts(space: tagOklab)
+    let prepared = prepareGradient(stops, opts).get
+    stops[1] = ColorStop(color: a, pos: 0.25'f32)
+    let original = [ColorStop(color: a, pos: 0.0'f32),
+      ColorStop(color: b, pos: 0.5'f32),
+      ColorStop(color: c, pos: 1.0'f32)]
+    for t in [0.0'f32, 0.2'f32, 0.5'f32, 0.9'f32, 1.0'f32]:
+      check prepared.sample(t).get == gradient(original, t, opts).get
+  test "prepared gradients reject invalid stops once":
+    let empty: seq[ColorStop] = @[]
+    check prepareGradient(empty, GradientOpts()).error.kind == InvalidOp
+    check PreparedGradient().sample(0.5'f32).error.kind == InvalidOp
 
 suite "spline":
   test "two-stop PCHIP is linear at the midpoint":
