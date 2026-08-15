@@ -9,6 +9,13 @@ proc near(a, b: float64, tol = 1e-9): bool = abs(a - b) <= tol
 test "conversion module compiles and is reachable":
   check conversionModule == "1.0.0"
 
+suite "identity conversion":
+  test "preserves a color exactly in its current space":
+    let original = color(tagOklch, 0.62'f32, 0.18'f32, 247'f32,
+      0.7'f32).get
+    check original.to(tagOklch).get == original
+    check to[tagOklch](original).get == original
+
 # --- short-path: isShortPath predicate ----------------------------------------
 
 suite "short-path: isShortPath predicate":
