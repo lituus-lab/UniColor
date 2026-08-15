@@ -27,6 +27,32 @@ nbCode:
   echo "version ", UniColorVersion
 
 nbText: """
+## Reusing a continuous palette
+
+`Palette.sample` is the convenient scalar API. For a plot, image, or other hot
+loop, prepare the ordered palette once. The prepared sampler converts every
+stop into the interpolation space once, then does not rebuild or revalidate its
+evenly spaced stops for every value. Batch sampling returns values in input
+order and stops at the first invalid input.
+"""
+
+nbCode:
+  let ramp = viridis(6).get
+  let sampler = ramp.prepareSampler().get
+  let positions = [0.0, 0.25, 0.5, 0.75, 1.0]
+  let sampled = sampler.sampleBatch(positions).get
+  echo "sampled colors ", sampled.len
+  echo "first space ", sampled[0].spaceTag
+
+nbText: """
+Run `nimble benchmarkPalette` for machine-readable JSON measurements of the
+convenience scalar path, prepared scalar path, and prepared batch path at
+10³, 10⁵, and 10⁶ samples. The benchmark checks result checksums before
+reporting speedups; `benchmarks/README.md` records the methodology and a dated
+reference run.
+"""
+
+nbText: """
 ## The three surfaces
 
 - **Nim** — the umbrella module re-exports every public submodule as the domain
