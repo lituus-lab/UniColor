@@ -51,6 +51,10 @@ task testAll, "debug + release + C ABI":
 task example, "Nim demo":
   exec "nim c -r --path:src -o:build/demo examples/demo.nim"
 
+task benchmarkPalette, "Benchmark scalar, prepared, and batch palette sampling":
+  exec "nim c -r -d:release --path:src --hints:off" &
+       " -o:build/benchmark_palette benchmarks/benchmark_palette.nim"
+
 const
   cliExe =
     when defined(windows): "build/unicolor.exe"
