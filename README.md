@@ -6,8 +6,18 @@ Perceptual color engine: color spaces, conversions through the XYZ hub,
 contrast metrics, interpolation, palettes, themes, and accessibility — in
 Nim, with a hand-written C ABI and a Cython Python binding.
 
-This scaffold ships the version C ABI; the domain lands in subsequent
-commits.
+The public Nim API includes reusable prepared gradient and palette samplers for
+hot paths. Preparation validates, converts, and retains interpolation state once;
+`sampleBatch` allocates one result sequence and preserves scalar ordering and
+errors.
+
+```nim
+import UniColor
+
+let ramp = viridis(6).get
+let sampler = ramp.prepareSampler().get
+let colors = sampler.sampleBatch([0.0, 0.25, 0.5, 0.75, 1.0]).get
+```
 
 ## Layout
 
@@ -35,6 +45,7 @@ nimble testAll        # debug + release + C ABI
 nimble ctest          # C ABI: static lib + tests/c
 nimble cexample       # C demo
 nimble example        # Nim demo
+nimble benchmarkPalette # scalar/prepared/batch sampling at 10^3, 10^5, 10^6
 nimble pyTest         # Cython + pytest
 nimble coverage       # gcov + lcov -> coverage/
 nimble book           # nimib book -> book/index.html
