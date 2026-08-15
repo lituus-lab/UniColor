@@ -72,6 +72,26 @@ suite "palette ctor and indexing":
     check PreparedPaletteSampler().sample(0.5).error.kind == InvalidOp
     let ordered = palette(palOrdered, [a], intentSequential, 0).get
     check ordered.prepareSampler().get.sample(-0.1).error.kind == InvalidColor
+  test "prepared batch sampling matches scalar order":
+    let a = color(tagSrgb, 0.1'f32, 0.2'f32, 0.3'f32).get
+    let b = color(tagSrgb, 0.7'f32, 0.8'f32, 0.9'f32).get
+    let p = palette(palOrdered, [a, b], intentSequential, 0).get
+    let prepared = p.prepareSampler().get
+    let values = [0.0, 0.25, 0.5, 0.75, 1.0]
+    let sampled = prepared.sampleBatch(values).get
+    let parallel = prepared.sampleBatch(values,
+        BatchOpts(parallel: true, threads: 2)).get
+    check sampled.len == values.len
+    check parallel == sampled
+    for index in 0 ..< values.len:
+      check sampled[index] == p.sample(values[index]).get
+  test "prepared batch sampling reports the first invalid value":
+    let a = color(tagSrgb, 0.1'f32, 0.2'f32, 0.3'f32).get
+    let p = palette(palOrdered, [a], intentSequential, 0).get
+    check p.prepareSampler().get.sampleBatch([0.5, 1.1]).error.kind ==
+      InvalidColor
+    let empty: seq[float64] = @[]
+    check PreparedPaletteSampler().sampleBatch(empty).error.kind == InvalidOp
   test "role access on Semantic":
     var roles = initTable[string, int]()
     roles["fg"] = 0

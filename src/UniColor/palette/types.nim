@@ -159,6 +159,23 @@ proc sample*(sampler: PreparedPaletteSampler,
     return ok[Color, ColorError](sampler.singleColor)
   sampler.gradient.sample(t.float32)
 
+proc sampleBatch*(sampler: PreparedPaletteSampler, values: openArray[float64],
+    batchOpts = defaultBatchOpts()): Result[seq[Color], ColorError] {.
+    raises: [].} =
+  ## Sample a prepared palette into one preallocated result sequence.
+  ## `parallel` is accepted but currently follows the order-stable serial path.
+  discard batchOpts
+  if not sampler.initialized:
+    return err[seq[Color], ColorError](colorError(InvalidOp,
+        "sampleBatch: uninitialized prepared palette sampler", "sampleBatch"))
+  var colors = newSeq[Color](values.len)
+  for index in 0 ..< values.len:
+    let sampled = sampler.sample(values[index])
+    if sampled.isErr:
+      return err[seq[Color], ColorError](sampled.error)
+    colors[index] = sampled.get
+  ok[seq[Color], ColorError](colors)
+
 proc role*(p: Palette, name: string): Result[Color, ColorError] {.raises: [].} =
   ## Role access for `Semantic`. `InvalidOp` for other structures. Unknown role
   ## -> `InvalidColor`.
