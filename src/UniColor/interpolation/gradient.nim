@@ -8,6 +8,7 @@
 import UniColor/core/core
 import UniColor/core/space_tag
 import UniColor/core/numerics
+import UniColor/conversion/to
 import UniColor/interpolation/space
 
 type
@@ -98,7 +99,11 @@ proc prepareGradient*(stops: openArray[ColorStop],
   if valid.isErr:
     return err[PreparedGradient, ColorError](valid.error)
   var retained = newSeqOfCap[ColorStop](stops.len)
-  for stop in stops: retained.add stop
+  for stop in stops:
+    let converted = stop.color.to(opts.space)
+    if converted.isErr:
+      return err[PreparedGradient, ColorError](converted.error)
+    retained.add ColorStop(color: converted.get, pos: stop.pos)
   ok[PreparedGradient, ColorError](PreparedGradient(stops: retained,
       opts: opts))
 

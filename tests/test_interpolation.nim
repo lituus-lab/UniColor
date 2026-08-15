@@ -110,6 +110,15 @@ suite "gradient":
       ColorStop(color: c, pos: 1.0'f32)]
     for t in [0.0'f32, 0.2'f32, 0.5'f32, 0.9'f32, 1.0'f32]:
       check prepared.sample(t).get == gradient(original, t, opts).get
+  test "prepared gradients convert mixed-space stops once":
+    let a = color(tagSrgb, 0.2'f32, 0.3'f32, 0.4'f32).get
+    let b = color(tagOklab, 0.7'f32, 0.05'f32, -0.08'f32).get
+    let stops = [ColorStop(color: a, pos: 0.0'f32),
+      ColorStop(color: b, pos: 1.0'f32)]
+    let opts = GradientOpts(space: tagOklch)
+    let prepared = prepareGradient(stops, opts).get
+    for t in [0.0'f32, 0.25'f32, 0.75'f32, 1.0'f32]:
+      check prepared.sample(t).get == gradient(stops, t, opts).get
   test "prepared gradients reject invalid stops once":
     let empty: seq[ColorStop] = @[]
     check prepareGradient(empty, GradientOpts()).error.kind == InvalidOp
