@@ -21,7 +21,7 @@ let colors = sampler.sampleBatch([0.0, 0.25, 0.5, 0.75, 1.0]).get
 
 ## Layout
 
-```
+```text
 src/UniColor.nim            umbrella module
 src/UniColor/               domain
   c_api.nim                 C ABI
