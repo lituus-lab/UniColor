@@ -108,20 +108,69 @@ proc unbox[T](p: ptr T) {.raises: [].} =
     dealloc(p)
 
 # Unmangled C symbols, C calling convention, exported from the shared lib.
+
+# A shared library runs NimMain from DllMain (Windows) or an ELF constructor;
+# a static one has neither, so nothing initializes the Nim runtime. The first
+# entry point then enters Nim code whose globals were never set up and the
+# process faults. The static-library tasks pass -d:staticNoAutoInit; shared
+# builds must not, or NimMain runs twice.
+when defined(staticNoAutoInit):
+  # A once primitive, not a plain flag: two threads reaching an entry point
+  # together would both see the flag unset, both call NimMain, and the second
+  # would enter Nim code the first had not finished initializing. The platform
+  # primitives block the losers until the winner returns, which a flag cannot.
+  #
+  # C statics, not Nim globals: module initialization would reset a Nim one and
+  # NimMain would run again. NimMain is declared here too — the generated
+  # prototype comes after this section.
+  {.emit: """/*VARSECTION*/
+void NimMain(void);
+#ifdef _WIN32
+#  include <windows.h>
+static INIT_ONCE uc_runtime_once = INIT_ONCE_STATIC_INIT;
+static BOOL CALLBACK uc_runtime_init(PINIT_ONCE o, PVOID p, PVOID *c) {
+  (void)o; (void)p; (void)c; NimMain(); return TRUE;
+}
+static void uc_runtime_ensure(void) {
+  InitOnceExecuteOnce(&uc_runtime_once, uc_runtime_init, NULL, NULL);
+}
+#else
+#  include <pthread.h>
+static pthread_once_t uc_runtime_once = PTHREAD_ONCE_INIT;
+static void uc_runtime_init(void) { NimMain(); }
+static void uc_runtime_ensure(void) {
+  pthread_once(&uc_runtime_once, uc_runtime_init);
+}
+#endif
+""".}
+  template ensureRuntime() =
+    {.emit: "  uc_runtime_ensure();".}
+else:
+  template ensureRuntime() = discard
+
+
 {.push exportc, cdecl, dynlib.}
 
 proc uc_init() {.raises: [].} =
   ## Run Nim module initializers — populates the contrast / import / export /
   ## spaces / validation registries. Call once before any registry-based proc.
+  ensureRuntime()
   nimMainC()
 
 proc uc_version(): cstring =
   ## Static version string; do not free.
+  ensureRuntime()
   UniColorVersion.cstring
 
-proc uc_abi_major(): cint = AbiMajor.cint
-proc uc_abi_minor(): cint = AbiMinor.cint
-proc uc_abi_patch(): cint = AbiPatch.cint
+proc uc_abi_major(): cint =
+  ensureRuntime()
+  AbiMajor.cint
+proc uc_abi_minor(): cint =
+  ensureRuntime()
+  AbiMinor.cint
+proc uc_abi_patch(): cint =
+  ensureRuntime()
+  AbiPatch.cint
 
 # --- color core -------------------------------------------------------
 
@@ -130,22 +179,26 @@ proc uc_color_make*(tag: cint, c0, c1, c2: cfloat, alpha: cfloat): UcColor {.
   ## Validating constructor (wraps `color`). Returns a sentinel uc_color
   ## (`tag == UC_TAG_UNKNOWN`) on rejection: unknown space, alpha ∉ [0,1], or a
   ## NaN/Inf component at bounds. Out-of-gamut components are preserved.
+  ensureRuntime()
   let r = color(SpaceTag(int32(tag)), float32(c0), float32(c1), float32(c2),
       float32(alpha))
   if r.isOk: toUc(r.get) else: ucColorInvalid
 
 proc uc_color_srgb*(r, g, b: cfloat): UcColor {.raises: [].} =
   ## Opaque sRGB color (alpha 1). Sentinel on NaN/Inf components.
+  ensureRuntime()
   uc_color_make(cint(id(tagSrgb)), r, g, b, 1.0'f32)
 
 proc uc_color_oklch*(l, c, h: cfloat): UcColor {.raises: [].} =
   ## Opaque OKLCH color (alpha 1). Sentinel on NaN/Inf components.
+  ensureRuntime()
   uc_color_make(cint(id(tagOklch)), l, c, h, 1.0'f32)
 
 proc uc_parse*(s: cstring): UcColor {.raises: [].} =
   ## Parse a CSS Color 4 string (hex / rgb() / oklch()). Returns the sentinel on
   ## a NULL input, a malformed string, or a deferred form (oklab/lab/lch/color/
   ## hsl/hwb). `s` is NUL-terminated; do not free.
+  ensureRuntime()
   if s.isNil:
     return ucColorInvalid
   let r = parseColor($s)
@@ -159,6 +212,7 @@ proc uc_format_css*(c: UcColor, legacy: cint, buf: ptr char,
   ## the required length (excl. NUL). If `buf` is NULL or `size` is 0, returns
   ## the required length without writing. A sentinel `c` formats as the empty
   ## string (length 0). Never raises.
+  ensureRuntime()
   if c.tag == 0:
     return 0.csize_t
   let col = fromUc(c)
@@ -169,21 +223,25 @@ proc uc_format_css*(c: UcColor, legacy: cint, buf: ptr char,
 proc uc_color_components(c: UcColor, c0, c1, c2: ptr cfloat) {.raises: [].} =
   ## Write the 3 chromatic components. A sentinel `c` writes zeros. Null `c0`/
   ## `c1`/`c2` is undefined.
+  ensureRuntime()
   c0[] = c.comps[0]
   c1[] = c.comps[1]
   c2[] = c.comps[2]
 
 proc uc_color_alpha(c: UcColor): cfloat {.raises: [].} =
   ## Alpha straight [0,1] (0 for the sentinel).
+  ensureRuntime()
   c.comps[3]
 
 proc uc_color_tag(c: UcColor): cint {.raises: [].} =
   ## The SpaceTag as a raw int32 (UC_TAG_UNKNOWN == 0 for the sentinel).
+  ensureRuntime()
   cint(c.tag)
 
 proc uc_gamut_map*(c: UcColor, target: cint): UcColor {.raises: [].} =
   ## Gamut-map `c` into the `target` space. Returns the sentinel on a sentinel
   ## input or an unknown target.
+  ensureRuntime()
   let col = fromUc(c)
   if col.spaceTag == tagUnknown:
     return ucColorInvalid
@@ -193,6 +251,7 @@ proc uc_gamut_map*(c: UcColor, target: cint): UcColor {.raises: [].} =
 proc uc_convert*(c: UcColor, target: cint): UcColor {.raises: [].} =
   ## Convert `c` to the `target` space (wraps `to`). Returns the sentinel on a
   ## sentinel input or an unknown target.
+  ensureRuntime()
   let col = fromUc(c)
   if col.spaceTag == tagUnknown:
     return ucColorInvalid
@@ -202,6 +261,7 @@ proc uc_convert*(c: UcColor, target: cint): UcColor {.raises: [].} =
 proc uc_contrast*(fg, bg: UcColor): cdouble {.raises: [].} =
   ## WCAG 2.2 contrast ratio (default metric). NaN on a sentinel operand or a
   ## metric failure.
+  ensureRuntime()
   let f = fromUc(fg)
   let b = fromUc(bg)
   if f.spaceTag == tagUnknown or b.spaceTag == tagUnknown:
@@ -212,6 +272,7 @@ proc uc_contrast*(fg, bg: UcColor): cdouble {.raises: [].} =
 proc uc_contrast_metric*(fg, bg: UcColor, metric: cstring): cdouble {.raises: [].} =
   ## Contrast ratio under a named metric ("wcag22" / "apca" / "bridgepca"). NaN
   ## on a sentinel operand, a NULL metric, an unknown metric, or a failure.
+  ensureRuntime()
   let f = fromUc(fg)
   let b = fromUc(bg)
   if f.spaceTag == tagUnknown or b.spaceTag == tagUnknown or metric.isNil:
@@ -223,6 +284,7 @@ proc uc_distance*(a, b: UcColor, metric: cstring): cdouble {.raises: [].} =
   ## Perceptual distance under a named metric (deltaE76/94/2000/cmc/ok/itp/jz/
   ## cam16Ucs). NaN on a sentinel operand, a NULL metric, an unknown metric, or
   ## a failure.
+  ensureRuntime()
   let x = fromUc(a)
   let y = fromUc(b)
   if x.spaceTag == tagUnknown or y.spaceTag == tagUnknown or metric.isNil:
@@ -237,18 +299,21 @@ proc uc_theme_make(prim: ptr UcToken, nprim: csize_t, sem: ptr UcToken,
   ## Build an immutable 3-layer token tree from parallel C token arrays. Returns
   ## NULL on a validation error (empty name, duplicate role, bad alias). The
   ## caller owns the handle; free it with `uc_theme_free`.
+  ensureRuntime()
   let r = theme(readTokens(prim, nprim), readTokens(sem, nsem),
       readTokens(comp, ncomp))
   if r.isErr: nil else: box(r.get)
 
 proc uc_theme_free(t: ptr Theme) {.raises: [].} =
   ## Release a theme handle and its token-tree storage. NULL is a no-op.
+  ensureRuntime()
   unbox(t)
 
 proc uc_theme_resolve*(t: ptr Theme, role: cstring): UcColor {.raises: [].} =
   ## Resolve a role to a color (component -> semantic -> primitive). Returns the
   ## sentinel on a NULL handle / role, an undefined role, a dangling alias, or a
   ## cycle.
+  ensureRuntime()
   if t.isNil or role.isNil:
     return ucColorInvalid
   let r = t[].resolve($role)
@@ -256,10 +321,12 @@ proc uc_theme_resolve*(t: ptr Theme, role: cstring): UcColor {.raises: [].} =
 
 proc uc_theme_count(t: ptr Theme): cint {.raises: [].} =
   ## Total tokens across the three layers (0 for NULL).
+  ensureRuntime()
   if t.isNil: 0 else: cint(t[].count)
 
 proc uc_theme_has_role(t: ptr Theme, role: cstring): cint {.raises: [].} =
   ## 1 if `role` is defined in any layer, else 0 (0 for NULL handle / role).
+  ensureRuntime()
   if t.isNil or role.isNil: 0 elif t[].hasRole($role): 1 else: 0
 
 proc uc_theme_export(t: ptr Theme, name: cstring, legacy: cint, buf: ptr char,
@@ -269,6 +336,7 @@ proc uc_theme_export(t: ptr Theme, name: cstring, legacy: cint, buf: ptr char,
   ## `size-1` bytes + NUL into `buf` and returns the required length (excl. NUL);
   ## measure-only when `buf` is NULL / `size` is 0; 0 on a NULL handle / name or
   ## an unknown format.
+  ensureRuntime()
   if t.isNil or name.isNil:
     return 0.csize_t
   var opts = defaultExportOpts()
@@ -284,6 +352,7 @@ proc uc_palette_make(tag: cint, colors: ptr UcColor, ncolors: csize_t,
   ## ordinal, `intent` a UC_PAL_INTENT_* ordinal. Returns NULL on an out-of-
   ## range tag/intent or empty colors. The caller owns the handle; free with
   ## `uc_palette_free`. (Semantic role maps are not exposed over this ABI.)
+  ensureRuntime()
   if tag < 0 or tag > cint(ord(palSemantic)) or intent < 0 or
       intent > cint(ord(intentTerminal)):
     return nil
@@ -293,11 +362,13 @@ proc uc_palette_make(tag: cint, colors: ptr UcColor, ncolors: csize_t,
 
 proc uc_palette_free(p: ptr Palette) {.raises: [].} =
   ## Release a palette handle and its color/role storage. NULL is a no-op.
+  ensureRuntime()
   unbox(p)
 
 proc uc_palette_color_at*(p: ptr Palette, i: cint): UcColor {.raises: [].} =
   ## Discrete index for the five discrete structures. Sentinel on a NULL handle,
   ## a `Continuous`/`Semantic` palette, or an out-of-range index.
+  ensureRuntime()
   if p.isNil:
     return ucColorInvalid
   let r = p[].colorAt(int(i))
@@ -306,6 +377,7 @@ proc uc_palette_color_at*(p: ptr Palette, i: cint): UcColor {.raises: [].} =
 proc uc_palette_sample*(p: ptr Palette, t: cdouble): UcColor {.raises: [].} =
   ## Ordered-ramp sample at `t` in [0,1]. Sentinel on a NULL handle, a non-ramp
   ## structure, or `t` outside [0,1].
+  ensureRuntime()
   if p.isNil:
     return ucColorInvalid
   let r = p[].sample(t)
@@ -314,6 +386,7 @@ proc uc_palette_sample*(p: ptr Palette, t: cdouble): UcColor {.raises: [].} =
 proc uc_palette_role*(p: ptr Palette, role: cstring): UcColor {.raises: [].} =
   ## Role access for a `Semantic` palette. Sentinel on a NULL handle/role, a
   ## non-Semantic structure, or an unknown role.
+  ensureRuntime()
   if p.isNil or role.isNil:
     return ucColorInvalid
   let r = p[].role($role)
@@ -321,14 +394,17 @@ proc uc_palette_role*(p: ptr Palette, role: cstring): UcColor {.raises: [].} =
 
 proc uc_palette_len(p: ptr Palette): cint {.raises: [].} =
   ## Number of colors (0 for NULL).
+  ensureRuntime()
   if p.isNil: 0 else: cint(p[].len)
 
 proc uc_palette_tag(p: ptr Palette): cint {.raises: [].} =
   ## The structure tag as a UC_PAL_TAG_* ordinal (0 for NULL).
+  ensureRuntime()
   if p.isNil: 0 else: cint(ord(p[].tag))
 
 proc uc_palette_intent(p: ptr Palette): cint {.raises: [].} =
   ## The intent as a UC_PAL_INTENT_* ordinal (0 for NULL).
+  ensureRuntime()
   if p.isNil: 0 else: cint(ord(p[].intent))
 
 # --- import ABI -------------------------------------------------------
@@ -340,6 +416,7 @@ proc uc_import_theme(input: cstring, name: cstring, strict: cint): ptr Theme {.
   ## input/name, an unknown importer, a kind mismatch (the format yields a
   ## palette), or a parse failure. The caller owns the handle; free with
   ## `uc_theme_free`.
+  ensureRuntime()
   if input.isNil or name.isNil:
     return nil
   let r = importTheme($input, $name, ImportOpts(strict: strict != 0))
@@ -351,6 +428,7 @@ proc uc_import_palette(input: cstring, name: cstring,
   ## Import `input` as format `name` and return the reconstructed palette. Returns
   ## NULL on a NULL input/name, an unknown importer, a kind mismatch (the format
   ## yields a theme), or a parse failure. Free with `uc_palette_free`.
+  ensureRuntime()
   if input.isNil or name.isNil:
     return nil
   let r = importPalette($input, $name, ImportOpts(strict: strict != 0))
@@ -364,6 +442,7 @@ proc uc_import_reported(input: cstring, name: cstring,
   ## only the diagnostics (format name, schema version, warnings). Returns NULL
   ## on a NULL input/name or an unknown importer. Free with
   ## `uc_import_report_free`.
+  ensureRuntime()
   if input.isNil or name.isNil:
     return nil
   let r = importReported($input, $name, ImportOpts(strict: strict != 0))
@@ -372,27 +451,32 @@ proc uc_import_reported(input: cstring, name: cstring,
 proc uc_import_report_free(r: ptr ImportReport) {.raises: [].} =
   ## Release an import-report handle and its target/warnings storage. NULL is a
   ## no-op.
+  ensureRuntime()
   unbox(r)
 
 proc uc_import_format_name(r: ptr ImportReport, buf: ptr char,
     size: csize_t): csize_t {.raises: [].} =
   ## The format name the importer reconstructed. Measure+fill buffer; 0 on NULL.
+  ensureRuntime()
   if r.isNil: 0.csize_t else: writeBuf(r[].formatName, buf, size)
 
 proc uc_import_schema_version(r: ptr ImportReport, buf: ptr char,
     size: csize_t): csize_t {.raises: [].} =
   ## The schema version read from the source ("" if the format carries none).
   ## Measure+fill buffer; 0 on NULL.
+  ensureRuntime()
   if r.isNil: 0.csize_t else: writeBuf(r[].schemaVersion, buf, size)
 
 proc uc_import_warning_count(r: ptr ImportReport): cint {.raises: [].} =
   ## Number of recoverable warnings in the report (0 for NULL).
+  ensureRuntime()
   if r.isNil: 0 else: cint(r[].warnings.len)
 
 proc uc_import_warning(r: ptr ImportReport, i: cint, buf: ptr char,
     size: csize_t): csize_t {.raises: [].} =
   ## The message of warning `i`. Measure+fill buffer; 0 on a NULL handle or an
   ## out-of-range index.
+  ensureRuntime()
   if r.isNil:
     return 0.csize_t
   let idx = int(i)
@@ -405,33 +489,40 @@ proc uc_import_warning(r: ptr ImportReport, i: cint, buf: ptr char,
 proc uc_validate_theme(t: ptr Theme): ptr ValidationReport {.raises: [].} =
   ## Run every registered theme rule and return the report. NULL on a NULL
   ## handle. The caller owns the handle; free with `uc_validation_free`.
+  ensureRuntime()
   if t.isNil: nil else: box(validateTheme(t[]))
 
 proc uc_validate_palette(p: ptr Palette): ptr ValidationReport {.raises: [].} =
   ## Run every registered palette rule and return the report. NULL on a NULL
   ## handle. Free with `uc_validation_free`.
+  ensureRuntime()
   if p.isNil: nil else: box(validatePalette(p[]))
 
 proc uc_validation_free(r: ptr ValidationReport) {.raises: [].} =
   ## Release a validation-report handle and its rule-result storage. NULL is a
   ## no-op.
+  ensureRuntime()
   unbox(r)
 
 proc uc_validation_score(r: ptr ValidationReport): cint {.raises: [].} =
   ## 0..100 score (0 for NULL).
+  ensureRuntime()
   if r.isNil: 0 else: cint(r[].score)
 
 proc uc_validation_worst(r: ptr ValidationReport): cint {.raises: [].} =
   ## Worst severity as a UC_SEVERITY_* ordinal (0 for NULL).
+  ensureRuntime()
   if r.isNil: 0 else: cint(ord(r[].worst))
 
 proc uc_validation_rule_count(r: ptr ValidationReport): cint {.raises: [].} =
   ## Number of rule results (0 for NULL).
+  ensureRuntime()
   if r.isNil: 0 else: cint(r[].results.len)
 
 proc uc_validation_rule_name(r: ptr ValidationReport, i: cint, buf: ptr char,
     size: csize_t): csize_t {.raises: [].} =
   ## Rule `i`'s name. Measure+fill buffer; 0 on a NULL handle or out-of-range.
+  ensureRuntime()
   if r.isNil:
     return 0.csize_t
   let idx = int(i)
@@ -442,6 +533,7 @@ proc uc_validation_rule_name(r: ptr ValidationReport, i: cint, buf: ptr char,
 proc uc_validation_rule_severity(r: ptr ValidationReport, i: cint): cint {.
     raises: [].} =
   ## Rule `i`'s severity as a UC_SEVERITY_* ordinal (0 on NULL / out-of-range).
+  ensureRuntime()
   if r.isNil:
     return 0
   let idx = int(i)
@@ -453,6 +545,7 @@ proc uc_validation_rule_metric(r: ptr ValidationReport, i: cint): cdouble {.
     raises: [].} =
   ## Rule `i`'s measured metric (NaN when the rule has none). NaN on NULL /
   ## out-of-range.
+  ensureRuntime()
   if r.isNil:
     return NaN
   let idx = int(i)
@@ -463,6 +556,7 @@ proc uc_validation_rule_metric(r: ptr ValidationReport, i: cint): cdouble {.
 proc uc_validation_rule_threshold(r: ptr ValidationReport, i: cint): cdouble {.
     raises: [].} =
   ## Rule `i`'s pass boundary. NaN on NULL / out-of-range.
+  ensureRuntime()
   if r.isNil:
     return NaN
   let idx = int(i)
@@ -474,6 +568,7 @@ proc uc_validation_rule_message(r: ptr ValidationReport, i: cint, buf: ptr char,
     size: csize_t): csize_t {.raises: [].} =
   ## Rule `i`'s human-readable message. Measure+fill buffer; 0 on a NULL handle
   ## or out-of-range.
+  ensureRuntime()
   if r.isNil:
     return 0.csize_t
   let idx = int(i)
