@@ -6,7 +6,6 @@
 # heap. Private fields -> no external mutation.
 
 import std/hashes
-import contracts
 import UniColor/core/numerics
 import UniColor/core/color_error
 import UniColor/core/space_tag
@@ -26,20 +25,11 @@ type
     comps: array[4, float32]
     tag: SpaceTag
 
-func color*(tag: SpaceTag, c0, c1, c2: float32,
-            alpha = 1.0'f32): Result[Color, ColorError] {.contractual, raises: [].} =
-  ## Bounds-validating constructor. Returns `err(InvalidColor)` if:
-  ##   - `tag == tagUnknown` (no color without space);
-  ##   - `alpha` ∉ [0,1];
-  ##   - a component or alpha is NaN/Inf at bounds.
-  ## Out-of-gamut components (e.g. sRGB < 0 or > 1) are **preserved** (no clamp).
-  ## The core assumes valid Colors (no re-validation).
-  ensure:
-    (result.isOk and result.get.tag != tagUnknown and
-      isFinite(float64(result.get.comps[3])) and
-      result.get.comps[3] >= 0.0'f32 and result.get.comps[3] <= 1.0'f32) or
-    (result.isErr and result.error.kind == InvalidColor)
-  body:
+func colorChecked(tag: SpaceTag, c0, c1, c2: float32,
+                  alpha: float32): Result[Color, ColorError] {.raises: [].} =
+  ## The validation itself. `color` asserts the postcondition over what this
+  ## returns; keeping the two apart is what lets both carry `raises: []`.
+  block:
     if tag == tagUnknown:
       return err[Color, ColorError](colorError(InvalidColor,
           "color requires a known space"))
@@ -52,6 +42,29 @@ func color*(tag: SpaceTag, c0, c1, c2: float32,
         return err[Color, ColorError](
           colorError(InvalidColor, "component NaN/Inf at bounds"))
     ok[Color, ColorError](Color(comps: [c0, c1, c2, alpha], tag: tag))
+
+func color*(tag: SpaceTag, c0, c1, c2: float32,
+            alpha = 1.0'f32): Result[Color, ColorError] {.raises: [].} =
+  ## Bounds-validating constructor. Returns `err(InvalidColor)` if:
+  ##   - `tag == tagUnknown` (no color without space);
+  ##   - `alpha` ∉ [0,1];
+  ##   - a component or alpha is NaN/Inf at bounds.
+  ## Out-of-gamut components (e.g. sRGB < 0 or > 1) are **preserved** (no clamp).
+  ## The core assumes valid Colors (no re-validation).
+  ##
+  ## The postcondition is asserted here rather than written as a NimContracts
+  ## `ensure`: that wraps the body in `try/except Exception` to know whether an
+  ## exception is in flight, which the compiler reads as "this can raise
+  ## Exception" and `raises: []` then rejects. The check is the same one, over
+  ## the returned value, and compiles away under -d:release.
+  result = colorChecked(tag, c0, c1, c2, alpha)
+  when not defined(release):
+    doAssert (result.isOk and result.get.tag != tagUnknown and
+        isFinite(float64(result.get.comps[3])) and
+        result.get.comps[3] >= 0.0'f32 and result.get.comps[3] <= 1.0'f32) or
+      (result.isErr and result.error.kind == InvalidColor),
+      "color: a result is either a tagged color with alpha in [0,1], or " &
+      "an InvalidColor error"
 
 func spaceTag*(c: Color): SpaceTag {.inline, raises: [].} =
   c.tag

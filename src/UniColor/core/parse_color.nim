@@ -25,7 +25,6 @@
 import std/strutils
 import std/parseutils
 import std/math
-import contracts
 import UniColor/core/result
 import UniColor/core/color
 import UniColor/core/color_error
@@ -242,15 +241,10 @@ proc parseOklchBody(body: string): Result[Color, ColorError] {.raises: [].} =
           "parseColor: bad oklch alpha '" & alphaStr & "'", "parseColor"))
   color(tagOklch, l, c, h, a)
 
-proc parseColor*(s: string): Result[Color, ColorError] {.contractual, raises: [].} =
-  ## Parse a CSS Color 4 color string into a `Color` tagged by its native space.
-  ## Supports hex, `rgb()`/`rgba()`, `oklch()`. DEFERRED (documented hole):
-  ## oklab/lab/lch/color/hsl/hwb. Malformed input -> `err InvalidColor`. The
-  ## inverse of `formatColorCss` for the supported forms.
-  ensure:
-    (result.isOk and spaceTag(result.get) != tagUnknown) or
-    (result.isErr and result.error.kind == InvalidColor)
-  body:
+proc parseChecked(s: string): Result[Color, ColorError] {.raises: [].} =
+  ## The parse itself. `parseColor` asserts the postcondition over what this
+  ## returns; keeping the two apart is what lets both carry `raises: []`.
+  block:
     let t = trim(s)
     if t.len == 0:
       return err[Color, ColorError](colorError(InvalidColor,
@@ -267,3 +261,23 @@ proc parseColor*(s: string): Result[Color, ColorError] {.contractual, raises: []
     # Deferred forms (oklab/lab/lch/color/hsl/hwb) fall through to InvalidColor.
     err[Color, ColorError](colorError(InvalidColor,
         "parseColor: unsupported color form '" & t & "'", "parseColor"))
+
+proc parseColor*(s: string): Result[Color, ColorError] {.raises: [].} =
+  ## Parse a CSS Color 4 color string into a `Color` tagged by its native space.
+  ## Supports hex, `rgb()`/`rgba()`, `oklch()`. DEFERRED (documented hole):
+  ## oklab/lab/lch/color/hsl/hwb. Malformed input -> `err InvalidColor`. The
+  ## inverse of `formatColorCss` for the supported forms.
+  ##
+  ## The postcondition is asserted here rather than written as a NimContracts
+  ## `ensure`: that wraps the body in `try/except Exception` to know whether an
+  ## exception is in flight, which the compiler reads as "this can raise
+  ## Exception" and `raises: []` then rejects. The check is the same one, over
+  ## the returned value, and compiles away under -d:release.
+  result = parseChecked(s)
+  when not defined(release):
+    doAssert (result.isOk and spaceTag(result.get) != tagUnknown) or
+      (result.isErr and result.error.kind == InvalidColor),
+      "parseColor: a result is either a color in a known space, or an " &
+      "InvalidColor error"
+
+
