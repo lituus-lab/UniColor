@@ -36,7 +36,7 @@ import UniColor/core/schema # currentSchemaVersion.
 import UniColor/conversion/conversion # gamutMap.
 import UniColor/theme/tree
 
-const ucExportVersion* = "1.0.0" ## UniColor version, written into every export
+const ucExportVersion* = "1.1.0" ## UniColor version, written into every export
                                  ## header for traceability. Mirrors
                                  ## `UniColorVersion` (UniColor.nim). Duplicated
                                  ## here to avoid a circular import; the test

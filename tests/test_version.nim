@@ -5,6 +5,6 @@ import UniColor
 
 suite "version":
   test "version string":
-    check UniColorVersion == "1.0.0"
+    check UniColorVersion == "1.1.0"
   test "module markers include core":
     check coreModule in ucModuleMarkers

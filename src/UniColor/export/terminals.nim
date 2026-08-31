@@ -351,7 +351,81 @@ proc xresourcesRender(theme: Theme, opts: ExportOpts): Result[ExportReport,
   report(lines.join("\n"), termInfoLostWarning("xresources",
       lostRoles(theme, fullTermProjected)))
 
-# Bootstrap — register the eight terminal exporters. Fired by
+# --- iTerm2 — .itermcolors, an XML property list. Unlike every other terminal
+# here it carries no hex: each color is a dict of 0..1 float components with an
+# explicit "sRGB" color space. The components are derived from the same 6-hex
+# the other formats emit, so all eight terminal exports agree on the value to
+# the byte rather than to the rounding. Key names are iTerm2's own (`Ansi N
+# Color`, `Background Color`, ...); absent slots are omitted, as elsewhere.
+# ------------------------------------------------------------------------
+proc hexPair(hex: string, at: int): float32 {.raises: [].} =
+  ## One byte of a 6-hex string as 0..1. Decoded by hand rather than with
+  ## `parseHexInt`, which raises: the callers here are `{.raises: [].}` and the
+  ## input always comes from `hex6`, so there is no error case to propagate.
+  var value = 0
+  for offset in 0 .. 1:
+    let c = hex[at + offset]
+    value = value * 16 + (case c
+      of '0' .. '9': ord(c) - ord('0')
+      of 'a' .. 'f': ord(c) - ord('a') + 10
+      of 'A' .. 'F': ord(c) - ord('A') + 10
+      else: 0)
+  float32(value) / 255.0'f32
+
+proc plistColor(hex: string, indent: string): seq[string] {.raises: [].} =
+  ## One `<dict>` of components for a 6-hex color. iTerm2 reads reals in 0..1,
+  ## so each byte is divided by 255 -- exact, no second conversion path.
+  let
+    r = hexPair(hex, 0)
+    g = hexPair(hex, 2)
+    b = hexPair(hex, 4)
+  @[indent & "<dict>",
+    indent & "\t<key>Alpha Component</key>", indent & "\t<real>1</real>",
+    indent & "\t<key>Blue Component</key>",
+    indent & "\t<real>" & fmtF(b, 6) & "</real>",
+    indent & "\t<key>Color Space</key>", indent & "\t<string>sRGB</string>",
+    indent & "\t<key>Green Component</key>",
+    indent & "\t<real>" & fmtF(g, 6) & "</real>",
+    indent & "\t<key>Red Component</key>",
+    indent & "\t<real>" & fmtF(r, 6) & "</real>",
+    indent & "</dict>"]
+
+proc iterm2Render(theme: Theme, opts: ExportOpts): Result[ExportReport,
+    ColorError] {.raises: [].} =
+  let tp = resolveTermPalette(theme)
+  var lines: seq[string]
+  lines.add("<?xml version=\"1.0\" encoding=\"UTF-8\"?>")
+  # After the declaration, never before it: a comment ahead of `<?xml` is not
+  # a well-formed document. `--` cannot appear inside an XML comment, and the
+  # header has none, but it is stripped rather than trusted.
+  lines.add("<!-- " & genHeader("iterm2", SerializeOpts(target: tagSrgb,
+      legacySrgb: true)).replace("--", "-") & " -->")
+  lines.add("<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" " &
+      "\"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">")
+  lines.add("<plist version=\"1.0\">")
+  lines.add("<dict>")
+  for i in 0 .. 15:
+    if tp.ansi[i].hasHex:
+      lines.add("\t<key>Ansi " & $i & " Color</key>")
+      lines.add(plistColor(tp.ansi[i], "\t"))
+  # iTerm2 names the cursor's text and the selected text separately from the
+  # cursor and the selection: text on those grounds takes the page background,
+  # which is what the palette already says reads on them.
+  for (key, hex) in [("Background Color", tp.bg), ("Foreground Color", tp.fg),
+                     ("Bold Color", tp.fg), ("Link Color", tp.ansi[4]),
+                     ("Cursor Color", tp.cursor),
+                     ("Cursor Text Color", tp.bg),
+                     ("Selection Color", tp.selection),
+                     ("Selected Text Color", tp.fg)]:
+    if hex.hasHex:
+      lines.add("\t<key>" & key & "</key>")
+      lines.add(plistColor(hex, "\t"))
+  lines.add("</dict>")
+  lines.add("</plist>")
+  report(lines.join("\n"), termInfoLostWarning("iterm2",
+      lostRoles(theme, fullTermProjected)))
+
+# Bootstrap — register the nine terminal exporters. Fired by
 # `import "UniColor/export/terminals"`.
 discard registerExporter(Exporter(name: "alacritty", render: alacrittyRender))
 discard registerExporter(Exporter(name: "kitty", render: kittyRender))
@@ -362,3 +436,4 @@ discard registerExporter(Exporter(name: "windowsterminal",
 discard registerExporter(Exporter(name: "foot", render: footRender))
 discard registerExporter(Exporter(name: "warp", render: warpRender))
 discard registerExporter(Exporter(name: "xresources", render: xresourcesRender))
+discard registerExporter(Exporter(name: "iterm2", render: iterm2Render))

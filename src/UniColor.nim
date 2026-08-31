@@ -29,7 +29,7 @@ export ucImportArea
 export ucExportArea
 
 const
-  UniColorVersion* = "1.0.0"
+  UniColorVersion* = "1.1.0"
   ucModuleMarkers* = [coreModule, mathModule, spacesModule, conversionModule,
     contrastModule, interpolationModule, paletteModule, accessibilityModule,
     themeModule, imageModule, importModule, exportModule, validationModule]
