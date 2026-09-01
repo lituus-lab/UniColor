@@ -299,6 +299,10 @@ jobs:
         with:
           nim-version: '2.2.10'
       - run: nimble install -y
+      # The nimib book links markdown, which loads libpcre at run time.
+      # ubuntu-24.04 stopped shipping it, so the book compiles and the binary
+      # dies on the first run: `could not load: libpcre.so(.3|.1|)`.
+      - run: sudo apt-get update && sudo apt-get install -y libpcre3
       - run: nimble docsDeps
       # nimib runs the book's code against this build: a stale book fails here.
       - run: nimble docs
