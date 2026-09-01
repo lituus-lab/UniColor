@@ -32,7 +32,9 @@ export hdr
 ## (ICtCp perceptual work space). All algos are deterministic and run in
 ## the image's work space (default OKLab, ICtCp for HDR).
 runnableExamples:
-  import UniColor/core/core
+  # The facade, not core alone: a runnableExample compiles on its own imports,
+  # and `Palette.len` lives in the palette module.
+  import UniColor
   let red = color(tagSrgb, 1.0'f32, 0.0'f32, 0.0'f32).get
   let blu = color(tagSrgb, 0.0'f32, 0.0'f32, 1.0'f32).get
   let img = image(2, 2, [red, blu, red, blu], tagSrgb).get

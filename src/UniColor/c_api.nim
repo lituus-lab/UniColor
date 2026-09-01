@@ -8,9 +8,11 @@
 ## buffer that returns the required length (0 on failure).
 import ../UniColor
 
+# The C test asserts these equal the UC_VERSION_* macros, so they track the
+# release, not an ABI generation of their own.
 const
   AbiMajor = 1
-  AbiMinor = 0
+  AbiMinor = 1
   AbiPatch = 0
 
 # Layout twin of the C `uc_color` struct (include/UniColor.h): 4 float32
