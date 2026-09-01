@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "unicolor"
-version = "1.0.0"
+version = "1.1.0"
 description = "Perceptual color engine (Python binding over the UniColor C library)"
 readme = "README.md"
 requires-python = ">=3.10"
