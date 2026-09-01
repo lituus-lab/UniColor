@@ -51,8 +51,8 @@ const uc = await load();
 
 // --- version / ABI ---------------------------------------------------------
 
-checkStr("version", uc.version(), "0.1.0");
-checkInt("abi_major", uc.abiMajor(), 0);
+checkStr("version", uc.version(), "1.1.0");
+checkInt("abi_major", uc.abiMajor(), 1);
 checkInt("abi_minor", uc.abiMinor(), 1);
 checkInt("abi_patch", uc.abiPatch(), 0);
 

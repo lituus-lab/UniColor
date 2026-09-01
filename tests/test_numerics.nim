@@ -27,7 +27,9 @@ suite "clampTargeted — targeted, never blanket":
 
 suite "cbrtSigned — preserves sign (OKLab Ottosson)":
   test "positive cube root":
-    check cbrtSigned(27.0) == 3.0
+    # Not `==`: libm's cbrt is not correctly rounded everywhere, and glibc
+    # returns 3.0000000000000004 for 27.
+    check nearlyEqual(cbrtSigned(27.0), 3.0, 1e-15, 1e-15)
   test "negative preserves sign (not cbrt(abs))":
     check cbrtSigned(-8.0) == -2.0
   test "zero is zero":

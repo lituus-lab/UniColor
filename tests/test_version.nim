@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright 2026 lituus-lab
-## The version, stated in six places, checked to agree.
+## The version, stated in seven places, checked to agree.
 ##
 ## Nimble refuses anything but a string literal for `version`, so the manifest
 ## cannot import a shared constant and no arrangement makes one file the source
@@ -30,7 +30,7 @@ proc valueOf(path, key, opener, closer: string): string =
     return value[0 ..< closes]
   ""
 
-suite "one version, six copies":
+suite "one version, seven copies":
   let manifest = valueOf("UniColor.nimble", "version", "\"", "\"")
 
   test "the manifest states one":
@@ -55,6 +55,10 @@ suite "one version, six copies":
     check valueOf("src/UniColor/c_api.nim", "AbiMajor", "= ", "") == parts[0]
     check valueOf("src/UniColor/c_api.nim", "AbiMinor", "= ", "") == parts[1]
     check valueOf("src/UniColor/c_api.nim", "AbiPatch", "= ", "") == parts[2]
+
+  test "the WASM test expects it":
+    check valueOf("tests/wasm/test_unicolor.js", "checkStr(\"version\"",
+        "\"", "\"") == manifest
 
   test "the Python distribution agrees":
     check valueOf("py/pyproject.toml", "version", "\"", "\"") == manifest
