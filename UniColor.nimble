@@ -148,7 +148,10 @@ task wasm, "Build the WASM module (unicolor.wasm + JS glue) via emscripten":
     "-s EXPORTED_FUNCTIONS=['" & wasmExports & "']\n" &
     "-s EXPORTED_RUNTIME_METHODS=['" & wasmRt & "']\n" &
     "-s ALLOW_MEMORY_GROWTH=1\n")
-  exec "nim c --noMain --mm:arc --threads:off -d:release --path:src" &
+  # wasm.nim imports c_api, so it inherits the same bootstrap: --noMain
+  # emits no auto-init here either, and without the define every registry
+  # lookup returns the sentinel.
+  exec "nim c --noMain -d:noAutoInit --mm:arc --threads:off -d:release --path:src" &
     " --os:linux --cpu=wasm32 --cc:clang --clang.exe=emcc --clang.linkerexe=emcc" &
     " --passC:\"-s WASM=1 -O2\"" &
     " --passL:@build/wasm/flags.txt" &
