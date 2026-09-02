@@ -24,7 +24,7 @@ self-contained wheel: the native library travels inside the package, so
 installing it needs neither Nim nor a compiler.
 
 ```
-pip install unicolor
+pip install lituus-unicolor
 ```
 
 CI executes this notebook against the wheel the release actually publishes, so

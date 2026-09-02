@@ -5,7 +5,7 @@ requires = ["setuptools>=64", "wheel", "Cython>=3.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "unicolor"
+name = "lituus-unicolor"
 version = "1.1.0"
 description = "Perceptual color engine (Python binding over the UniColor C library)"
 readme = "README.md"
