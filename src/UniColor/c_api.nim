@@ -105,12 +105,15 @@ proc unbox[T](p: ptr T) {.raises: [].} =
 
 # Unmangled C symbols, C calling convention, exported from the shared lib.
 
-# A shared library runs NimMain from DllMain (Windows) or an ELF constructor;
-# a static one has neither, so nothing initializes the Nim runtime. The first
-# entry point then enters Nim code whose globals were never set up and the
-# process faults. The static-library tasks pass -d:staticNoAutoInit; shared
-# builds must not, or NimMain runs twice.
-when defined(staticNoAutoInit):
+# --noMain suppresses the generated entry point and with it every auto-init
+# hook: neither the static nor the shared build emits a DllMain or an ELF
+# constructor, so nothing initializes the Nim runtime. The first entry point
+# then enters Nim code whose globals were never set up. The shared build was
+# assumed to be covered by a loader hook it does not have -- its registries
+# stayed empty and the contrast entry answered nan. Every --noMain task passes
+# -d:noAutoInit; an ordinary executable linking this module must not, since its
+# own main already ran NimMain.
+when defined(noAutoInit):
   # A once primitive, not a plain flag: two threads reaching an entry point
   # together would both see the flag unset, both call NimMain, and the second
   # would enter Nim code the first had not finished initializing. The platform
@@ -153,7 +156,7 @@ proc uc_init() {.raises: [].} =
   ## Idempotent: repeated calls do nothing.
   ##
   ## The work is `ensureRuntime`, which every entry point calls. It used to be
-  ## followed by a direct NimMain, so under -d:staticNoAutoInit the module
+  ## followed by a direct NimMain, so under -d:noAutoInit the module
   ## initializers ran twice -- rebuilding every global registry while the first
   ## set was still live. The heap did not survive it: the second
   ## `uc_palette_make` of a process died inside Nim's allocator.

@@ -174,18 +174,18 @@ const
     else: ""
 
 task clib, "C shared library":
-  exec "nim c --app:lib --noMain --mm:arc -d:release --path:src -o:" & sharedLib &
+  exec "nim c --app:lib -d:noAutoInit --noMain --mm:arc -d:release --path:src -o:" & sharedLib &
        macArgs & " src/UniColor/c_api.nim"
   done "clib"
 
 task clibStatic, "C static library":
-  exec "nim c --app:staticlib -d:staticNoAutoInit --noMain --mm:arc -d:release --path:src -o:" &
+  exec "nim c --app:staticlib -d:noAutoInit --noMain --mm:arc -d:release --path:src -o:" &
        staticLib & " src/UniColor/c_api.nim"
   done "clibStatic"
 
 task clibMsvc, "C static library, MSVC ABI (Windows Python extension)":
   # CPython on Windows is MSVC-built and cannot link MinGW output.
-  exec "nim c --cc:vcc --app:staticlib -d:staticNoAutoInit --noMain --mm:arc -d:release --path:src" &
+  exec "nim c --cc:vcc --app:staticlib -d:noAutoInit --noMain --mm:arc -d:release --path:src" &
        " -o:UniColor.lib src/UniColor/c_api.nim"
   done "clibMsvc"
 
