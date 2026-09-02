@@ -28,6 +28,10 @@ CI: 3-OS Nim matrix + C ABI (linux/macOS) + Python.
 - C ABI: hand-written `include/UniColor.h` kept in sync with
   `src/UniColor/c_api.nim`; `tests/c` links the header against the lib.
   Built `--app:staticlib`/`--app:lib --noMain --mm:arc -d:release`.
+- A change to `c_api.nim` is verified by `ctest`, `pyTest` and, where there
+  is one, `wasmTest`: three linkages, three runtime bootstraps. A green
+  `ctest` alone proved nothing the day the shared build lost its
+  initializer and every registry answered with the sentinel.
 - C symbols `uc_*`; lib `libUniColor`; header `UniColor.h`.
 - C ABI error model (ADR-0004): no error codes. Color procs return a sentinel
   `uc_color` (`tag == UC_TAG_UNKNOWN`); numeric procs return NaN; string procs
