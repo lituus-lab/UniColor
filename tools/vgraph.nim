@@ -7,9 +7,15 @@
 ## actually use; a macro-built import would slip past it.
 import std/[os, strformat, strutils]
 
-const
-  Cfg = "vgraph.cfg"
-  Nimble = "UniColor.nimble"
+const Cfg = "vgraph.cfg"
+
+proc manifest(): string =
+  ## The repo's own .nimble, found rather than named: this tool is the same
+  ## file in every Uni* repo, and a hard-coded name is the one line that would
+  ## have to differ -- so it is the one line that would drift.
+  for path in walkFiles("*.nimble"):
+    return path
+  ""
 
 proc section(name: string): seq[string] =
   ## Entries under `[name]`, in file order.
@@ -33,7 +39,7 @@ proc layerOf(path: string, order: seq[string]): int =
 
 proc layerOfModule(modulePath: string, order: seq[string]): int =
   ## Index of the layer owning an imported module path, or -1. Matches a layer
-  ## name against any path component, so `UniColor/spaces/oklab` resolves to the
+  ## name against any path component, so `Lib/spaces/oklab` resolves to the
   ## `spaces` layer and a bare `c_api` to the `c_api` layer. A `std/`-prefixed
   ## import is Nim stdlib (external infra), never a family layer — without this
   ## guard `std/math` would collide with the `math` layer.
@@ -134,7 +140,8 @@ proc main() =
   # Only packages listed under [engines] may appear in `requires` (ADR-0001).
   let allowed = section("engines")
   var engines = 0
-  if fileExists(Nimble):
+  let Nimble = manifest()
+  if Nimble.len > 0 and fileExists(Nimble):
     for package in requiredPackages(Nimble):
       if not package.startsWith("Uni"): continue
       inc engines
