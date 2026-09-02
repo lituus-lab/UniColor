@@ -50,12 +50,6 @@ proc fromUc(u: UcColor): Color {.raises: [].} =
   let r = color(SpaceTag(u.tag), u.comps[0], u.comps[1], u.comps[2], u.comps[3])
   if r.isOk: r.get else: Color()
 
-# Nim's module initializers, emitted as the C `NimMain` under --noMain. The
-# contrast / import / export / spaces / validation registries are populated by
-# top-level `discard registerX(...)` side effects, so a host program MUST call
-# `uc_init` once before any registry-based proc.
-proc nimMainC() {.importc: "NimMain", cdecl, raises: [].}
-
 # Measure+fill buffer writer shared by every string-producing proc. Writes up to
 # `size-1` bytes + NUL into `buf` and returns the required length (excl. NUL).
 # If `buf` is NULL or `size` is 0, returns the required length without writing.
@@ -156,8 +150,14 @@ else:
 proc uc_init() {.raises: [].} =
   ## Run Nim module initializers — populates the contrast / import / export /
   ## spaces / validation registries. Call once before any registry-based proc.
+  ## Idempotent: repeated calls do nothing.
+  ##
+  ## The work is `ensureRuntime`, which every entry point calls. It used to be
+  ## followed by a direct NimMain, so under -d:staticNoAutoInit the module
+  ## initializers ran twice -- rebuilding every global registry while the first
+  ## set was still live. The heap did not survive it: the second
+  ## `uc_palette_make` of a process died inside Nim's allocator.
   ensureRuntime()
-  nimMainC()
 
 proc uc_version(): cstring =
   ## Static version string; do not free.
